@@ -1,4 +1,3 @@
-from email import message
 import discord
 
 from random import randint
@@ -7,7 +6,6 @@ from discord.ext import commands
 from enums import Data
 from logs import setlog
 from discord.commands import slash_command
-
 from ui_utils import Confirm
 
 

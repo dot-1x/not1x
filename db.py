@@ -5,6 +5,7 @@ import typing as t
 
 from ipaddress import ip_address
 from itertools import chain
+from discord.ext import commands
 from logs import setlog
 from pymysql.err import OperationalError
 
@@ -59,9 +60,9 @@ class connection:
                 password=data["password"],
                 db=data["db"],
             )
-        except:
-            _logger.critical("Failed to connect to database!")
-            return cls(aiomysql.Connection, aiomysql.Cursor)
+        except Exception as e:
+            _logger.critical("Failed to connect to database")
+            raise commands.CommandInvokeError("Failed to connect to database!")
         else:
             _cursor: aiomysql.Cursor = await _conn.cursor()
             return cls(_conn, _cursor)

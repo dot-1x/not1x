@@ -52,73 +52,6 @@ class PlayerListV(discord.ui.View):
             await _interaction.response.send_message("Player list send to private message", ephemeral=True)
 
 
-class ButtonUi(discord.ui.Button):
-    def __init__(
-        self,
-        bot: commands.Bot,
-        invoker: t.Union[discord.Member, discord.User],
-        _callback=None,
-        /,
-        *,
-        style: discord.ButtonStyle = ...,
-        label: t.Optional[str] = None,
-        disabled: bool = False,
-        custom_id: t.Optional[str] = None,
-        url: t.Optional[str] = None,
-        emoji: t.Optional[t.Union[str, discord.Emoji, discord.PartialEmoji]] = None,
-        row: t.Optional[int] = None,
-    ):
-        self.bot = bot
-        self.invoker = invoker
-        self.label = label
-        self.cb = _callback
-        super().__init__(
-            style=style,
-            label=label,
-            disabled=disabled,
-            custom_id=custom_id,
-            url=url,
-            emoji=emoji,
-            row=row,
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        self.cb(self, interaction)
-
-
-class SelecUi(discord.ui.Select):
-    def __init__(
-        self,
-        bot: commands.Bot,
-        _callback=None,
-        placeholder: str = None,
-        _min: int = 1,
-        _max: int = 1,
-        options: t.Union[t.Iterable, discord.SelectOption] = None,
-        /,
-        _cid: t.Optional[str] = None,
-        disabled: bool = False,
-        row: int | None = None,
-    ):
-        # if not iscoroutine(_callback):
-        #     raise TypeError("callback must be a function and a coroutine")
-        self.bot = (bot,)
-        self.cb = _callback
-        option = [_opt for _opt in options]
-        super().__init__(
-            custom_id=_cid,
-            placeholder=placeholder,
-            min_values=_min,
-            max_values=_max,
-            options=options,
-            disabled=disabled,
-            row=row,
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        await self.cb(self, interaction)
-
-
 class Confirm(discord.ui.View):
     def __init__(self, author: discord.Member = None, timeout: float = 180):
         self.author = author
@@ -140,42 +73,6 @@ class Confirm(discord.ui.View):
             return
         self.cancel = True
         self.stop()
-
-
-class CreateUi(discord.ui.View):
-    def __init__(
-        self,
-        bot: commands.Bot,
-        invoker: t.Union[discord.Member, discord.User],
-        *,
-        timeout: t.Optional[float] = 180,
-    ):
-        self.bot = bot
-        self.invoker = invoker
-        super().__init__(timeout=timeout)
-
-    @classmethod
-    def select(
-        cls,
-        bot: commands.Bot,
-        invoker: t.Union[discord.Member, discord.User],
-        _callback=None,
-        placeholder: str = None,
-        _min: int = 1,
-        _max: int = 1,
-        options: t.Union[t.Iterable, discord.SelectOption] = None,
-        /,
-        _cid: t.Optional[str] = None,
-        disabled: bool = False,
-        row: int | None = None,
-    ):
-        # self.add_item(SelecUi(self.bot, _callback, placeholder, _min, _max, options, _cid, disabled, row))
-        _ui = cls(bot, invoker)
-        _ui.add_item(SelecUi(bot, _callback, placeholder, _min, _max, options, _cid, disabled, row))
-        return _ui
-
-    def add_button(self, _callback=None, /, **kwargs):
-        self.add_item(ButtonUi(_callback, **kwargs))
 
 
 async def view_select_map(ctx: discord.ApplicationContext, _options: t.List[discord.SelectOption], notify: bool):
@@ -250,19 +147,14 @@ async def view_select_map(ctx: discord.ApplicationContext, _options: t.List[disc
         embeds.title = "No map were {}".format("notified" if notify else "deleted")
         embeds.description = None
     else:
-        try:
-            await insertnotify(ctx.author.id, ctx.author, _selected_map, delete=not notify)
-        except Exception as e:
-            _logger.error(e)
-            await ctx.respond(f"Failed to add to notification map with error: {e}, id: {secrets.randbits(64)}")
-        else:
-            await ctx.respond(
-                content="Succesfully {} map notification:\n```{}```".format(
-                    "added to" if notify else "deleted from", _selected_map
-                ),
-                ephemeral=True,
-            )
-            embeds.title = "Notified Maps:" if notify else "Deleted maps: "
+        await insertnotify(ctx.author.id, ctx.author, _selected_map, delete=not notify)
+        await ctx.respond(
+            content="Succesfully {} map notification:\n```{}```".format(
+                "added to" if notify else "deleted from", _selected_map
+            ),
+            ephemeral=True,
+        )
+        embeds.title = "Notified Maps:" if notify else "Deleted maps: "
 
     embeds.color = ctx.author.color
     embeds.set_author(name=ctx.author)

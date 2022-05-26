@@ -1,0 +1,5 @@
+py-cord==2.0.0rc1
+aiomysql
+bs4
+python-a2s
+requests

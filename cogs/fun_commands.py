@@ -20,7 +20,7 @@ class FunCommands(commands.Cog):
     async def on_ready(self):
         _logger.info("Extension loaded")
 
-    @slash_command(name="tic_tac_toe", guild_ids=[Data.OWNER_GUILD.value])
+    @slash_command(name="tic_tac_toe")
     @discord.option(
         name="opponent", type=discord.Member, description="Select an opponent to play with", required=False
     )
@@ -39,6 +39,12 @@ class FunCommands(commands.Cog):
                 if interaction.user != view.turn and view.turn != ctx.bot.user:
                     await interaction.response.send_message("Not your turn!", ephemeral=True)
                     return
+
+                if view.turn != ctx.bot.user:
+                    try:
+                        await interaction.response.send_message(f"You have choosen: {self._cid}", ephemeral=True)
+                    except:
+                        return
 
                 self.disabled = True
                 self.label = view.getstate()
@@ -74,11 +80,8 @@ class FunCommands(commands.Cog):
                         embeds.description = f"Game tie!"
                         await interaction.message.edit(embed=embeds, view=view)
                         view.stop()
-
-                if view.turn != ctx.bot.user:
-                    await interaction.response.send_message(f"You have choosen: {self._cid}", ephemeral=True)
+                        return
                 await interaction.message.edit(view=view)
-
                 await view.switchturn(interaction)
 
         class tttview(discord.ui.View):
@@ -110,8 +113,6 @@ class FunCommands(commands.Cog):
                         child.append(c)
 
                 if len(child) == 0:
-                    self.tie = True
-                    await self.children[0].callback(_interaction)
                     return
 
                 if self.turn == ctx.bot.user:
@@ -153,6 +154,12 @@ class FunCommands(commands.Cog):
                     if Counter(diag2)[self.turn] >= 3:
                         return True
 
+                self.tie = True
+
+                for c in self.children:
+                    if not c.disabled:
+                        self.tie = False
+
                 return False
 
         embeds = discord.Embed()
@@ -163,17 +170,17 @@ class FunCommands(commands.Cog):
 
         if opponent != ctx.bot.user:
             _confirm = Confirm(opponent, 30)
-            embeds.description = f"Waiting {opponent} confirmation..."
+            embeds.description = f"Waiting {opponent.mention} confirmation..."
             await ctx.respond(embed=embeds, view=_confirm)
             await _confirm.wait()
             if _confirm.cancel:
                 embeds.description = "Opponent have canceled the request!"
                 await ctx.edit(embed=embeds, view=None)
             else:
-                embeds.description = f"Tic Tac Toe {ctx.author.mention} vs {opponent.mention}"
+                embeds.description = f"Tic Tac Toe game {ctx.author.mention} vs {opponent.mention}"
                 await ctx.edit(embed=embeds, view=_v)
         else:
-            embeds.description = f"Tic Tac Toe {ctx.author.mention} vs {opponent.mention}"
+            embeds.description = f"Tic Tac Toe game {ctx.author.mention} vs {opponent.mention}"
             await ctx.respond(view=_v, embed=embeds)
 
 

@@ -26,6 +26,9 @@ class FunCommands(commands.Cog):
     )
     async def ttt(self, ctx: discord.ApplicationContext, opponent: discord.Member = None):
         opponent = opponent or ctx.bot.user
+        if opponent == ctx.author:
+            await ctx.respond(content="You cant face yourself as an enemy!", ephemeral=True)
+            return
 
         class tttbutton(discord.ui.Button):
             def __init__(self, label: str, custom_id: str, row: int):

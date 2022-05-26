@@ -64,13 +64,13 @@ class CheckServer:
             _server = SourceInfo
             return cls(ip, port, _server, name=f"{str(ip)}:{port}")
         else:
-            _location = get_location(f"{str(ip)}:{port}")
-            if not _location:
-                _loc = "Unknown!"
-                _flag = ":pirate_flag:"
-            else:
-                _loc = _location["location"]
-                _flag = _location["flag"]
+            # _location = get_location(f"{str(ip)}:{port}")
+            # if not _location:
+            #     _loc = "Unknown!"
+            #     _flag = ":pirate_flag:"
+            # else:
+            #     _loc = _location["location"]
+            #     _flag = _location["flag"]
             return cls(
                 ip,
                 port,
@@ -80,8 +80,8 @@ class CheckServer:
                 maps=_server.map_name,
                 players=_server.player_count,
                 maxplayers=_server.max_players,
-                location=_loc,
-                location_flag=_flag,
+                # location=_loc,
+                # location_flag=_flag,
             )
 
     async def GetPlayers(self) -> None | list:
@@ -91,13 +91,3 @@ class CheckServer:
             self.player_list = None
 
         return self.player_list
-
-
-# if __name__ == "__main__":
-#     async def test():
-#         with open("country.json", "r") as j:
-#             js = json.load(j)
-#             async for k in iterdb(list(js.keys())):
-#                 print(k)
-
-#     asyncio.run(test())

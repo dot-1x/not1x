@@ -10,7 +10,6 @@ from ipaddress import ip_address
 from logs import setlog
 from discord import MISSING
 from enums import *
-from tasks.create_task import CustomTask
 from source_query import CheckServer
 
 
@@ -151,7 +150,7 @@ class ServerTask(tasks.Loop):
 
         fields = [
             ("Status : ", Status.ONLINE.value if self.isonline else Status.OFFLINE.value, True),
-            ("Location : ", f"{_server.flag} {_server.location}", True),
+            # ("Location : ", f"{_server.flag} {_server.location}", True),
             (
                 "Quick Connect : ",
                 f"steam://connect/{_server.ip_port[0]}:{_server.ip_port[1]}",
@@ -183,48 +182,45 @@ class ServerTask(tasks.Loop):
             _logger.info(f"Connection established for {self.ipport}")
 
         try:
-            await fetchip(self.ipport)
-            await fetchuser()
+            async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
+                channel: discord.TextChannel = self.bot.get_channel(channel)
+                if not channel:
+                    continue
+
+                if self._retries >= 10:
+                    if self._retries == 10:
+                        _logger.warning(f"Connection Timeout for {self.ipport}")
+                        _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+                        _e.start()
+
+                    if self._retries == 10080:
+                        _logger.critical(f"Shutting down {self.ipport} from map task, failed to respond within a week")
+                        try:
+                            _msg: discord.Message = self.bot.get_message(message)
+                            await _msg.delete()
+                        except:
+                            _logger.error(f"Cant delete message on {guild}")
+
+                        self.stop()
+                    continue
+
+                _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+                _e.start()
+
+            if not self._notif and self.ipport != "103.62.48.10:27058":
+                self._notif = True
+                async for _, userid, _, _ in iterdb(await fetchuser()):
+                    _user = self.bot.get_user(userid)
+                    notif = await getnotify(userid)
+                    if not _user:
+                        continue
+                    if self.mapname.lower() in notif:
+                        try:
+                            await _user.send(content="**Your favorite map is being played!**", embed=server_info)
+                        except:
+                            _logger.warning(f"Cannot send message to {userid}")
         except Exception as e:
             _logger.critical(e)
             return
-
-        async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
-            channel: discord.TextChannel = self.bot.get_channel(channel)
-            if not channel:
-                continue
-
-            if self._retries >= 10:
-                if self._retries == 10:
-                    _logger.warning(f"Connection Timeout for {self.ipport}")
-                    _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
-                    _e.start()
-
-                if self._retries == 10080:
-                    _logger.critical(f"Shutting down {self.ipport} from map task, failed to respond within a week")
-                    try:
-                        _msg_: discord.Message = self.bot.get_message(message)
-                        await _msg_.delete()
-                    except:
-                        _logger.error(f"Cant delete message on {guild}")
-
-                    self.stop()
-                continue
-
-            _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
-            _e.start()
-
-        if not self._notif and self.ipport != "103.62.48.10:27058":
-            self._notif = True
-            async for _, userid, _, _ in iterdb(await fetchuser()):
-                _user = self.bot.get_user(userid)
-                notif = await getnotify(userid)
-                if not _user:
-                    continue
-                if self.mapname.lower() in notif:
-                    try:
-                        await _user.send(content="**Your favorite map is being played!**", embed=server_info)
-                    except:
-                        _logger.warning(f"Cannot send message to {userid}")
         _et = datetime.datetime.now()
         # _logger.debug(f"Finished looping {self.ipport} in: {_et-_st}")

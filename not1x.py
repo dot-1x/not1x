@@ -9,23 +9,33 @@ from db import loadguild, connection
 from enums import *
 from logs import setlog
 from discord.ext import bridge, commands
+from discord.ext.commands import HelpCommand
 from discord.ext.commands.errors import *
 from command_error import CheckError, std_err_channels
 from tasks.map_task import ServerTask
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 _logger = setlog(__name__)
 
+class CustomHelp(HelpCommand):
+    def __init__(self, **options):
+        super().__init__(**options)
+
+    async def send_bot_help(self, mapping: t.Mapping[t.Optional[commands.Cog], t.List[commands.Command]]):
+        _logger.debug(mapping)
+        await self.context.send(content="A help command passed!")
 
 class Bot(bridge.Bot):
     def __init__(self):
-        self.prefix = "]"
+        self.prefix = "."
         self.ready = False
+        self.help = CustomHelp()
         super().__init__(
             command_prefix=self.prefix,
             owner_ids=Data.OWNER.value,
             case_insensitive=True,
             intents=discord.Intents.all(),
+            help_command=self.help
         )
 
         _logger.info("++++++ Loading not1x ++++++")

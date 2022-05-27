@@ -19,6 +19,9 @@ class std_err_channels(UserInputError):
     def __init__(self, message=None, *args):
         super().__init__("Cannot send message in std_err channel")
 
+class command_input_error(UserInputError):
+    def __init__(self, message=None, *args):
+        super().__init__(message=message)
 
 async def CheckError(
     ctx: t.Optional[discord.ApplicationContext | commands.Context],
@@ -45,10 +48,12 @@ async def CheckError(
         _error = str(error)
     elif isinstance(error, CommandOnCooldown):
         _error = str(error)
+    elif isinstance(error, command_input_error):
+        _error = str(error)
     elif isinstance(error, (MissingRequiredArgument, BadArgument, BadUnionArgument)):
         cmd_used = ctx.command
         _error = cmd_used.description
-        embeds.description = f'**Usage of "{_invoke}" command:**\n' + cmd_used.usage
+        embeds.description = f'**Usage of "{_invoke}" command:**\n {cmd_used.usage}' if cmd_used.usage is not None else str(error)
     elif isinstance(error, (CommandInvokeError, ApplicationCommandInvokeError)):
         _base_error = error.original
         await CheckError(ctx, _base_error)
@@ -56,7 +61,7 @@ async def CheckError(
 
     _err_id = secrets.randbits(64)
     embeds.title = _error
-    embeds.description = f"**Error ID: {_err_id}**"
+    embeds.set_footer(text=f"Error ID: {_err_id}")
     embeds.colour = Colour.red()
 
     try:

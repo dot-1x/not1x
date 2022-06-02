@@ -6,7 +6,14 @@ import ui_utils
 from datetime import datetime
 from multiprocessing import Process
 from ipaddress import ip_address
-from db import getchannel, getnotify, gettracking, inserttracking, updatechannel, updatetracking
+from db import (
+    getchannel,
+    getnotify,
+    gettracking,
+    inserttracking,
+    updatechannel,
+    updatetracking,
+)
 from enums import *
 from discord.ext import commands, bridge, pages, tasks
 from logs import setlog
@@ -42,7 +49,11 @@ class MapCommands(commands.Cog):
         server_info.title = _server.name
 
         fields = [
-            ("Status : ", ":green_circle: Online!" if _server.status else ":red_circle: Offline!", True),
+            (
+                "Status : ",
+                ":green_circle: Online!" if _server.status else ":red_circle: Offline!",
+                True,
+            ),
             (
                 "Quick Connect : ",
                 f"steam://connect/{_server.ip_port[0]}:{_server.ip_port[1]}",
@@ -138,7 +149,13 @@ class MapCommands(commands.Cog):
         required=False,
     )
     @commands.has_permissions(manage_guild=True)
-    async def add(self, ctx: discord.ApplicationContext, ip: str, port: int, channel: discord.TextChannel = None):
+    async def add(
+        self,
+        ctx: discord.ApplicationContext,
+        ip: str,
+        port: int,
+        channel: discord.TextChannel = None,
+    ):
 
         await ctx.defer()
 
@@ -174,7 +191,11 @@ class MapCommands(commands.Cog):
                 self.bot.persview[ipport] = _v
 
                 loop = ServerTask(
-                    bot=self.bot, name=ipport, ipport=ipport, seconds=Data.TASK_INTERVAL.value, view=_v
+                    bot=self.bot,
+                    name=ipport,
+                    ipport=ipport,
+                    seconds=Data.TASK_INTERVAL.value,
+                    view=_v,
                 )
                 loop.start()
 

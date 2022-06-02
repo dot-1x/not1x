@@ -26,7 +26,10 @@ def get_location(ip: str) -> dict | None:
             js = json.load(j)
             for k in js.keys():
                 if _image["title"].lower() in k.lower():
-                    return {"flag": f":flag_{js[k].lower()}:", "location": _image["title"]}
+                    return {
+                        "flag": f":flag_{js[k].lower()}:",
+                        "location": _image["title"],
+                    }
 
 
 class CheckServer:

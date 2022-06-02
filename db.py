@@ -62,7 +62,7 @@ class connection:
             )
         except Exception as e:
             _logger.critical("Failed to connect to database")
-            raise commands.CommandInvokeError("Failed to connect to database!")
+            raise e
         else:
             _cursor: aiomysql.Cursor = await _conn.cursor()
             return cls(_conn, _cursor)
@@ -156,7 +156,10 @@ async def getchannel(guild: int) -> int:
 
 async def updatechannel(guild: int, channel: int):
     db = await connection.conn()
-    await db.cursor.execute("UPDATE `guild_tracking` SET `channel_id`= %s WHERE guild_id = %s", (channel, guild))
+    await db.cursor.execute(
+        "UPDATE `guild_tracking` SET `channel_id`= %s WHERE guild_id = %s",
+        (channel, guild),
+    )
     await db.connection.commit()
     db.connection.close()
 
@@ -185,7 +188,8 @@ async def gettracking(guild: int, ip: str = None) -> list:
     db = await connection.conn()
     if ip:
         await db.cursor.execute(
-            "SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s", (guild, ip)
+            "SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s",
+            (guild, ip),
         )
     else:
         await db.cursor.execute("SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s", (guild))

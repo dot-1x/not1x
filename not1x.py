@@ -11,11 +11,12 @@ from logs import setlog
 from discord.ext import bridge, commands
 from discord.ext.commands import HelpCommand
 from discord.ext.commands.errors import *
-from command_error import CheckError, std_err_channels
+from command_error import CheckError, StdErrChannel
 from tasks.map_task import ServerTask
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 _logger = setlog(__name__)
+
 
 class CustomHelp(HelpCommand):
     def __init__(self, **options):
@@ -24,6 +25,7 @@ class CustomHelp(HelpCommand):
     async def send_bot_help(self, mapping: t.Mapping[t.Optional[commands.Cog], t.List[commands.Command]]):
         _logger.debug(mapping)
         await self.context.send(content="A help command passed!")
+
 
 class Bot(bridge.Bot):
     def __init__(self):
@@ -35,7 +37,7 @@ class Bot(bridge.Bot):
             owner_ids=Data.OWNER.value,
             case_insensitive=True,
             intents=discord.Intents.all(),
-            help_command=self.help
+            help_command=self.help,
         )
 
         _logger.info("++++++ Loading not1x ++++++")
@@ -55,7 +57,7 @@ class Bot(bridge.Bot):
             _logger.critical("Failed to connect to database")
             loop.run_until_complete(self.close())
             return
-        with open("_debugs/dev.txt") as token:
+        with open("_debugs/token.txt") as token:
             super().run(token.read().strip())
 
     def map_tasks(self):
@@ -106,10 +108,9 @@ class Bot(bridge.Bot):
         try:
             if message.channel.id == Data.STD_ERR_CHANNEL.value and not message.author.bot:
                 await message.delete()
-                raise std_err_channels
-        except std_err_channels:
-            _logger.warning(std_err_channels)
-            _logger.warning("Cannot send message in stderr channel")
+                raise StdErrChannel
+        except StdErrChannel:
+            _logger.warning(StdErrChannel)
             return
         return await super().on_message(message)
 

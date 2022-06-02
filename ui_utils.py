@@ -25,7 +25,11 @@ class PlayerListV(discord.ui.View):
     def generate_view(cls, ip: str, port: int):
         v = cls(ip, port)
 
-        btn = discord.ui.Button(custom_id=f"{ip}:{port}", style=discord.ButtonStyle.secondary, label="Player List")
+        btn = discord.ui.Button(
+            custom_id=f"{ip}:{port}",
+            style=discord.ButtonStyle.secondary,
+            label="Player List",
+        )
         btn.callback = v.sendplayer
         v.add_item(btn)
 
@@ -75,7 +79,11 @@ class Confirm(discord.ui.View):
         self.stop()
 
 
-async def view_select_map(ctx: discord.ApplicationContext, _options: t.List[discord.SelectOption], notify: bool):
+async def view_select_map(
+    ctx: discord.ApplicationContext,
+    _options: t.List[discord.SelectOption],
+    notify: bool,
+):
 
     _pages = []
     _selected_val = {}

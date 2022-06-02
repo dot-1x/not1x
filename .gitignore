@@ -3,3 +3,4 @@ _debugs
 *.log
 debugs.py
 *.ps1
+serverlist.txt

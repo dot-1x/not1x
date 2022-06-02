@@ -11,17 +11,20 @@ from discord.errors import *
 from discord import Embed, Colour, TextChannel
 from logs import setlog
 from enums import *
+from aiomysql import OperationalError
 
 _logger = setlog(__name__)
 
 
-class std_err_channels(UserInputError):
+class StdErrChannel(UserInputError):
     def __init__(self, message=None, *args):
         super().__init__("Cannot send message in std_err channel")
 
-class command_input_error(UserInputError):
+
+class CommandInputError(UserInputError):
     def __init__(self, message=None, *args):
         super().__init__(message=message)
+
 
 async def CheckError(
     ctx: t.Optional[discord.ApplicationContext | commands.Context],
@@ -48,12 +51,16 @@ async def CheckError(
         _error = str(error)
     elif isinstance(error, CommandOnCooldown):
         _error = str(error)
-    elif isinstance(error, command_input_error):
+    elif isinstance(error, CommandInputError):
         _error = str(error)
+    elif isinstance(error, OperationalError):
+        _error = f"Failed to connect to database!"
     elif isinstance(error, (MissingRequiredArgument, BadArgument, BadUnionArgument)):
         cmd_used = ctx.command
         _error = cmd_used.description
-        embeds.description = f'**Usage of "{_invoke}" command:**\n {cmd_used.usage}' if cmd_used.usage is not None else str(error)
+        embeds.description = (
+            f'**Usage of "{_invoke}" command:**\n {cmd_used.usage}' if cmd_used.usage is not None else str(error)
+        )
     elif isinstance(error, (CommandInvokeError, ApplicationCommandInvokeError)):
         _base_error = error.original
         await CheckError(ctx, _base_error)

@@ -20,9 +20,15 @@ class FunCommands(commands.Cog):
     async def on_ready(self):
         _logger.info("Extension loaded")
 
-    @slash_command(name="tic_tac_toe", description="play a tic tac toe game with friends or challenge the bot!")
+    @slash_command(
+        name="tic_tac_toe",
+        description="play a tic tac toe game with friends or challenge the bot!",
+    )
     @discord.option(
-        name="opponent", type=discord.Member, description="Select an opponent to play with", required=False
+        name="opponent",
+        type=discord.Member,
+        description="Select an opponent to play with",
+        required=False,
     )
     async def ttt(self, ctx: discord.ApplicationContext, opponent: discord.Member = None):
         opponent = opponent or ctx.bot.user

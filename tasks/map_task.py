@@ -3,20 +3,28 @@ import datetime
 import discord
 import typing as t
 
-
 from discord.ext import tasks, commands
-from db import fetchguild, fetchip, fetchuser, getnotify, gettracking, iterdb, updateserver, updatetracking
+from db import (
+    fetchguild,
+    fetchip,
+    fetchuser,
+    getnotify,
+    gettracking,
+    iterdb,
+    updateserver,
+    updatetracking,
+)
 from ipaddress import ip_address
 from logs import setlog
 from discord import MISSING
 from enums import *
 from source_query import CheckServer
-
+from aiomysql import OperationalError
 
 _logger = setlog(__name__)
 
 
-class EditMsg(tasks.Loop):
+class EditMsg:
     def __init__(
         self,
         guild: int,
@@ -32,24 +40,11 @@ class EditMsg(tasks.Loop):
         self.channel = channel
         self.embed = embed
         self.view = view
-        super().__init__(
-            coro=self.editmsg,
-            seconds=1,
-            hours=MISSING,
-            minutes=MISSING,
-            time=MISSING,
-            count=1,
-            reconnect=True,
-            loop=asyncio.get_event_loop(),
-        )
-
-    def after_loop(self):
-        _logger.info("Done Looping")
 
     async def editmsg(self):
 
+        _st = datetime.datetime.now()
         msg: discord.PartialMessage = self.channel.get_partial_message(self.message)
-
         try:
             await msg.edit(embed=self.embed)
         except discord.NotFound:
@@ -63,6 +58,8 @@ class EditMsg(tasks.Loop):
             await updatetracking(self.guild, self.ip, msg.id)
         except Exception as e:
             _logger.error(f"Cannot edit message on {self.ip} with error: {e}")
+        _et = datetime.datetime.now()
+        # _logger.debug(_et-_st)
 
 
 class ServerTask(tasks.Loop):
@@ -94,6 +91,7 @@ class ServerTask(tasks.Loop):
         self._view = view
         self._timedout = False
         self._down = False
+        self._msgs = {}
 
         super().__init__(
             coro=self.servercheck,
@@ -105,6 +103,7 @@ class ServerTask(tasks.Loop):
             reconnect=reconnect,
             loop=asyncio.get_event_loop(),
         )
+        self.add_exception_type(OperationalError)
 
     def start(self, *args, **kwargs):
         # self.servercheck.start()
@@ -149,7 +148,11 @@ class ServerTask(tasks.Loop):
                 # updateserver(self.ipport, _hdict)
 
         fields = [
-            ("Status : ", Status.ONLINE.value if self.isonline else Status.OFFLINE.value, True),
+            (
+                "Status : ",
+                Status.ONLINE.value if self.isonline else Status.OFFLINE.value,
+                True,
+            ),
             # ("Location : ", f"{_server.flag} {_server.location}", True),
             (
                 "Quick Connect : ",
@@ -181,46 +184,41 @@ class ServerTask(tasks.Loop):
         if self._retries >= 10 and _server.status:
             _logger.info(f"Connection established for {self.ipport}")
 
-        try:
-            async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
-                channel: discord.TextChannel = self.bot.get_channel(channel)
-                if not channel:
+        async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
+            channel: discord.TextChannel = self.bot.get_channel(channel)
+            if not channel:
+                continue
+            _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+            if self._retries >= 10:
+                if self._retries == 10:
+                    _logger.warning(f"Connection Timeout for {self.ipport}")
+                    await _e.editmsg()
+                if self._retries == 10080:
+                    _logger.critical(f"Shutting down {self.ipport} from map task, failed to respond within a week")
+                    try:
+                        _msg: discord.Message = self.bot.get_message(message)
+                        await _msg.delete()
+                    except:
+                        _logger.error(f"Cant delete message on {guild}")
+
+                    self.stop()
+                continue
+            await _e.editmsg()
+
+        if not self._notif and self.ipport != "103.62.48.10:27058":
+            self._notif = True
+            async for _, userid, _, _ in iterdb(await fetchuser()):
+                _user = self.bot.get_user(userid)
+                notif = await getnotify(userid)
+                if not _user:
                     continue
-
-                if self._retries >= 10:
-                    if self._retries == 10:
-                        _logger.warning(f"Connection Timeout for {self.ipport}")
-                        _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
-                        _e.start()
-
-                    if self._retries == 10080:
-                        _logger.critical(f"Shutting down {self.ipport} from map task, failed to respond within a week")
-                        try:
-                            _msg: discord.Message = self.bot.get_message(message)
-                            await _msg.delete()
-                        except:
-                            _logger.error(f"Cant delete message on {guild}")
-
-                        self.stop()
-                    continue
-
-                _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
-                _e.start()
-
-            if not self._notif and self.ipport != "103.62.48.10:27058":
-                self._notif = True
-                async for _, userid, _, _ in iterdb(await fetchuser()):
-                    _user = self.bot.get_user(userid)
-                    notif = await getnotify(userid)
-                    if not _user:
-                        continue
-                    if self.mapname.lower() in notif:
-                        try:
-                            await _user.send(content="**Your favorite map is being played!**", embed=server_info)
-                        except:
-                            _logger.warning(f"Cannot send message to {userid}")
-        except Exception as e:
-            _logger.critical(e)
-            return
+                if self.mapname.lower() in notif:
+                    try:
+                        await _user.send(
+                            content="**Your favorite map is being played!**",
+                            embed=server_info,
+                        )
+                    except:
+                        _logger.warning(f"Cannot send message to {userid}")
         _et = datetime.datetime.now()
         # _logger.debug(f"Finished looping {self.ipport} in: {_et-_st}")

@@ -2,6 +2,7 @@ import asyncio
 import pathlib
 import typing as t
 import os
+from xmlrpc.client import Server
 import discord
 import ui_utils
 
@@ -15,6 +16,8 @@ from command_error import CheckError, StdErrChannel
 from tasks.map_task import ServerTask
 
 __version__ = "0.3.3"
+__all__ = ["Bot"]
+
 _logger = setlog(__name__)
 
 
@@ -45,8 +48,10 @@ class Bot(bridge.Bot):
 
         self._pl_list_button = False
         self._persiew = {}
+        self.loop_maptsk: ServerTask = {}
 
         self.load_extension_from("cogs")
+        self.load_extension("utils")
         self.add_bridge_command(self.reload_ext)
 
     def run(self):
@@ -176,6 +181,7 @@ class Bot(bridge.Bot):
         usage="( reload_ext ): ext name, empty for all loaded ext",
     )
     @discord.option(name="exts", type=str, description="extension name to reload", required=False)
+    @commands.cooldown(1, 15, commands.BucketType.user)
     async def reload_ext(ctx: bridge.BridgeContext, *, exts=None):
         await ctx.reply("Reloading extensions")
         if ctx.author.id not in ctx.bot.owner_ids:

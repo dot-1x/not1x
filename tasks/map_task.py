@@ -24,7 +24,7 @@ from aiomysql import OperationalError
 _logger = setlog(__name__)
 
 
-class EditMsg:
+class EditMsg(tasks.Loop):
     def __init__(
         self,
         guild: int,
@@ -40,6 +40,16 @@ class EditMsg:
         self.channel = channel
         self.embed = embed
         self.view = view
+        super().__init__(
+            coro=self.editmsg,
+            seconds=1,
+            hours=MISSING,
+            minutes=MISSING,
+            time=MISSING,
+            count=None,
+            reconnect=True,
+            loop=asyncio.get_event_loop(),
+        )
 
     async def editmsg(self):
 
@@ -59,6 +69,7 @@ class EditMsg:
         except Exception as e:
             _logger.error(f"Cannot edit message on {self.ip} with error: {e}")
         _et = datetime.datetime.now()
+        self.stop()
         # _logger.debug(_et-_st)
 
 
@@ -104,6 +115,7 @@ class ServerTask(tasks.Loop):
             loop=asyncio.get_event_loop(),
         )
         self.add_exception_type(OperationalError)
+        bot.loop_maptsk[ipport] = self
 
     def start(self, *args, **kwargs):
         # self.servercheck.start()
@@ -188,11 +200,27 @@ class ServerTask(tasks.Loop):
             channel: discord.TextChannel = self.bot.get_channel(channel)
             if not channel:
                 continue
-            _e = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+
+            guild_message = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+            # if not guild in self._msgs:
+            #     self._msgs[guild] = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+            #     _logger.debug(f"Added: {tracking_ip} to: {guild} tracking message")
+            # guild_message: EditMsg = self._msgs[guild]
+
+            # if channel != guild_message.channel:
+            #     guild_message.channel = channel
+            #     _logger.debug(f"Updated mesage channel to: {channel} for: {guild}")
+            # if message != guild_message.message:
+            #     guild_message.message = message
+            #     _logger.debug(f"Updated mesage to: {message} for: {guild}")
+
             if self._retries >= 10:
                 if self._retries == 10:
                     _logger.warning(f"Connection Timeout for {self.ipport}")
-                    await _e.editmsg()
+                    try:
+                        guild_message.start()
+                    except:
+                        pass
                 if self._retries == 10080:
                     _logger.critical(f"Shutting down {self.ipport} from map task, failed to respond within a week")
                     try:
@@ -200,10 +228,9 @@ class ServerTask(tasks.Loop):
                         await _msg.delete()
                     except:
                         _logger.error(f"Cant delete message on {guild}")
-
                     self.stop()
                 continue
-            await _e.editmsg()
+            guild_message.start()
 
         if not self._notif and self.ipport != "103.62.48.10:27058":
             self._notif = True

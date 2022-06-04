@@ -1,17 +1,20 @@
 import asyncio
 import discord
 import typing as t
+import not1x
 
+from enums import Data
 from discord.ext import commands, bridge
 from command_error import CommandInputError
 from logs import setlog
+from utils import restart_map_loop
 
 
 _logger = setlog(__name__)
 
 
 class AdminCommands(commands.Cog):
-    def __init__(self, bot: commands.Bot) -> None:
+    def __init__(self, bot: not1x.Bot) -> None:
         self.bot = bot
 
     @commands.Cog.listener()
@@ -47,6 +50,20 @@ class AdminCommands(commands.Cog):
             content=f"Successfully deleted {len(deleted_msg)} message(s) in: {channel.mention}",
             delete_after=5,
         )
+
+    @discord.slash_command(guild_ids=[Data.OWNER_GUILD.value])
+    async def restart_loop_map(self, ctx: discord.ApplicationContext):
+        loops = [l.get_name() for l in asyncio.all_tasks() if l.get_name() in self.bot.loop_maptsk]
+        stopped_loop = [l for l in self.bot.loop_maptsk.keys() if l not in loops]
+
+        lembed = discord.Embed(title="Running Loop", color=discord.Colour.blurple())
+        lembed.description = "\n".join(loops)
+
+        sembed = discord.Embed(title="Stopped Loop", color=discord.Colour.blurple())
+        sembed.description = "\n".join(stopped_loop)
+
+        await ctx.respond(embeds=[lembed, sembed])
+        await restart_map_loop(self.bot)
 
 
 def setup(bot: commands.Bot):

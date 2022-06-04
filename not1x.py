@@ -2,7 +2,6 @@ import asyncio
 import pathlib
 import typing as t
 import os
-from xmlrpc.client import Server
 import discord
 import ui_utils
 

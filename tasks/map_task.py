@@ -46,7 +46,7 @@ class EditMsg(tasks.Loop):
             hours=MISSING,
             minutes=MISSING,
             time=MISSING,
-            count=None,
+            count=1,
             reconnect=True,
             loop=asyncio.get_event_loop(),
         )

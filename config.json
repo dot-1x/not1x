@@ -1,0 +1,13 @@
+{
+    "path":"",
+    "database":
+    {
+        "host":"Hostip",
+        "port":3306,
+        "user":"Username",
+        "password":"Password",
+        "db":"dbname"
+    },
+    "token":"DiscordToken",
+    "serverquery":[]
+}

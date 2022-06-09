@@ -1,7 +1,8 @@
+import json
 import re
 import discord
 import ui_utils
-
+import not1x
 
 from datetime import datetime
 from multiprocessing import Process
@@ -26,15 +27,11 @@ _logger = setlog(__name__)
 
 
 class MapCommands(commands.Cog):
-    def __init__(self, bot: commands.Bot) -> None:
+    def __init__(self, bot: not1x.Bot) -> None:
         self.bot = bot
 
     server = SlashCommandGroup("server", "Commands for source server")
     notify = SlashCommandGroup("notify", "Group for notify command")
-
-    @commands.Cog.listener()
-    async def on_ready(self):
-        _logger.info("extension loaded")
 
     @server.command(description="Checks about source server info")
     @discord.option(name="ip", type=str, description="A server ip address")
@@ -174,36 +171,38 @@ class MapCommands(commands.Cog):
             await ctx.respond("Please specify a tracking channel first")
             return
 
-        with open("source_query/serverlist.txt", "r+") as _sv_list:
+        serverstatus = await CheckServer.GetServer(ip=ip, port=port)
 
-            serverstatus = await CheckServer.GetServer(ip=ip, port=port)
+        if ipport in _tracking:
+            await ctx.respond("Given server ip is already on map tracking")
+            return
 
-            if ipport in _tracking:
-                await ctx.respond("Given server ip is already on map tracking")
-                return
+        if not serverstatus.status:
+            await ctx.respond("given server ip did not respond please try again later")
+            return
 
-            if not serverstatus.status:
-                await ctx.respond("given server ip did not respond please try again later")
-                return
+        _sv_list = self.bot.config["serverquery"]
 
-            if ipport not in _sv_list.read():
-                _v = ui_utils.PlayerListV.generate_view(ip=str(ip), port=port)
-                self.bot.persview[ipport] = _v
+        if ipport not in _sv_list:
+            _v = ui_utils.PlayerListV.generate_view(ip=str(ip), port=port)
+            self.bot.persview[ipport] = _v
 
-                loop = ServerTask(
-                    bot=self.bot,
-                    name=ipport,
-                    ipport=ipport,
-                    seconds=Data.TASK_INTERVAL.value,
-                    view=_v,
-                )
-                loop.start()
+            loop = ServerTask(
+                bot=self.bot,
+                name=ipport,
+                ipport=ipport,
+                seconds=Data.TASK_INTERVAL.value,
+                view=_v,
+            )
+            loop.start()
 
-                _sv_list.write("\n" + ipport)
-                _logger.info(f"Added new server '{ipport}' to map task")
+            _sv_list.append(ipport)
+            with open(self.bot.config["path"], "w") as w:
+                json.dump(self.bot.config, w)
+            _logger.info(f"Added new server '{ipport}' to map task")
 
-            await ctx.respond(f"Successfully added **{serverstatus.name}** to map tracking")
-            await inserttracking(ctx.guild.id, _channel.id, ipport, 0)
+        await ctx.respond(f"Successfully added **{serverstatus.name}** to map tracking")
+        await inserttracking(ctx.guild.id, _channel.id, ipport, 0)
 
     @server.command(description="Delete an existed task query on guild")
     @commands.has_permissions(manage_guild=True)

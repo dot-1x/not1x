@@ -16,10 +16,6 @@ class FunCommands(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        _logger.info("Extension loaded")
-
     @slash_command(
         name="tic_tac_toe",
         description="play a tic tac toe game with friends or challenge the bot!",
@@ -33,7 +29,7 @@ class FunCommands(commands.Cog):
     async def ttt(self, ctx: discord.ApplicationContext, opponent: discord.Member = None):
         opponent = opponent or ctx.bot.user
         if opponent == ctx.author:
-            await ctx.respond(content="You cant face yourself as an enemy!", ephemeral=True)
+            await ctx.respond(content="You cant face yourself!", ephemeral=True)
             return
 
         class tttbutton(discord.ui.Button):

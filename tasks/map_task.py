@@ -67,7 +67,7 @@ class EditMsg(tasks.Loop):
                 _logger.error(f"Cannot send message on {self.channel.id} with error: {e}")
             await updatetracking(self.guild, self.ip, msg.id)
         except Exception as e:
-            _logger.error(f"Cannot edit message on {self.ip} with error: {e}")
+            _logger.error(f"Cannot edit message {self.ip} on {self.guild} with error: {e}")
         _et = datetime.datetime.now()
         self.stop()
         # _logger.debug(_et-_st)
@@ -197,22 +197,12 @@ class ServerTask(tasks.Loop):
             _logger.info(f"Connection established for {self.ipport}")
 
         async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
+            await asyncio.sleep(0.2)
             channel: discord.TextChannel = self.bot.get_channel(channel)
             if not channel:
                 continue
 
             guild_message = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
-            # if not guild in self._msgs:
-            #     self._msgs[guild] = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
-            #     _logger.debug(f"Added: {tracking_ip} to: {guild} tracking message")
-            # guild_message: EditMsg = self._msgs[guild]
-
-            # if channel != guild_message.channel:
-            #     guild_message.channel = channel
-            #     _logger.debug(f"Updated mesage channel to: {channel} for: {guild}")
-            # if message != guild_message.message:
-            #     guild_message.message = message
-            #     _logger.debug(f"Updated mesage to: {message} for: {guild}")
 
             if self._retries >= 10:
                 if self._retries == 10:

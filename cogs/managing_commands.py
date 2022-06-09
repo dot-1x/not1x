@@ -17,10 +17,6 @@ class AdminCommands(commands.Cog):
     def __init__(self, bot: not1x.Bot) -> None:
         self.bot = bot
 
-    @commands.Cog.listener()
-    async def on_ready(self):
-        _logger.info("Extension loaded")
-
     @bridge.bridge_command(name="clear", description="Clear message on current channel")
     @commands.has_permissions(manage_messages=True)
     @discord.option(name="amount", type=int, description="Amount of message to delete")

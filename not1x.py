@@ -1,4 +1,5 @@
 import asyncio
+from ipaddress import ip_address
 import pathlib
 import typing as t
 import os
@@ -30,10 +31,12 @@ class CustomHelp(HelpCommand):
 
 
 class Bot(bridge.Bot):
-    def __init__(self):
+    def __init__(self, config: dict, *, token: str):
         self.prefix = "."
         self.ready = False
         self.help = CustomHelp()
+        self.config = config
+        self.__token = token
         super().__init__(
             command_prefix=self.prefix,
             owner_ids=Data.OWNER.value,
@@ -44,6 +47,12 @@ class Bot(bridge.Bot):
 
         _logger.info("++++++ Loading not1x ++++++")
         _logger.info(f"Version: {__version__}")
+        try:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(connection.conn())
+        except:
+            _logger.critical("Failed to connect to database")
+            return
 
         self._pl_list_button = False
         self._persiew = {}
@@ -54,29 +63,27 @@ class Bot(bridge.Bot):
         self.add_bridge_command(self.reload_ext)
 
     def run(self):
-        try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(connection.conn())
-        except:
-            _logger.critical("Failed to connect to database")
-            loop.run_until_complete(self.close())
-            return
-        with open("_debugs/token.txt") as token:
-            super().run(token.read().strip())
+        super().run(self.__token)
 
     def map_tasks(self):
-        with open("source_query/serverlist.txt") as _sv_list:
+        _sv_list = self.config["serverquery"]
+        for _sv in _sv_list:
+            if not ":" in _sv:
+                _logger.warning('Missing delimiter ":" on ' + _sv)
+                continue
+            try:
+                ip_address(_sv.split(":")[0])
+            except Exception as e:
+                _logger.warning(str(e) + " on " + _sv)
+                continue
+            if not self._pl_list_button:
+                _view = ui_utils.PlayerListV.generate_view(_sv.split(":")[0], _sv.split(":")[1])
+                self.persview[_sv] = _view
+                self.add_view(_view)
 
-            for _sv in _sv_list.read().split("\n"):
-                if not self._pl_list_button:
-                    _view = ui_utils.PlayerListV.generate_view(_sv.split(":")[0], _sv.split(":")[1])
-                    self.persview[_sv] = _view
-                    self.add_view(_view)
-
-                loop = ServerTask(self, _sv, _sv, Data.TASK_INTERVAL.value, self.persview[_sv])
-                loop.start()
-
-            self._pl_list_button = True
+            loop = ServerTask(self, _sv, _sv, Data.TASK_INTERVAL.value, self.persview[_sv])
+            loop.start()
+        self._pl_list_button = True
         _logger.info("loop map task has been started!")
 
     @property
@@ -89,19 +96,25 @@ class Bot(bridge.Bot):
             raise ValueError(f"key: {key} is already on persistent view")
         self._persiew[key] = val
 
+    def add_cog(self, cog: commands.Cog, *, override: bool = False) -> None:
+        # _logger.info(f"Loading: {cog.__cog_name__}")
+        return super().add_cog(cog, override=override)
+
     ####################### Bot's event handler #######################
     async def on_ready(self):
 
         if self.ready:
             _logger.info(f"Reconnected as: {self.user}")
             return
+
         self.ready = True
 
         async for guild in self.fetch_guilds():
             await loadguild(guild.id)
 
         self.map_tasks()
-
+        for c in self.cogs:
+            _logger.info(f"Loaded cog: {c}")
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
 
     async def on_guild_join(self, guild: discord.Guild):

@@ -49,8 +49,8 @@ class connection:
 
     @classmethod
     async def conn(cls):
-        with open("_debugs/config.json", "r") as j:
-            data = json.load(j)
+        with open("_debugs/config.json", "r") as cfg:
+            data = json.load(cfg)
             data = data["database"]
         try:
             _conn: aiomysql.Connection = await aiomysql.connect(

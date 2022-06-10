@@ -22,19 +22,22 @@ async def get_location(ip: str) -> dict | None:
                 _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
                 _image = _country.find("img")
             except:
-                return None
 
+                return None
+            req.close()
+            await ses.close()
             with open("country.json", "r") as j:
-                js = json.load(j)
-                for k in js.keys():
+                country = json.load(j)
+                for k in country.keys():
                     if _image["title"].lower() in k.lower():
-                        return {
-                            "flag": f":flag_{js[k].lower()}:",
+                        _res = {
+                            "flag": f":flag_{country[k].lower()}:",
                             "location": _image["title"],
                         }
+                        j.close()
+                        return _res
                 j.close()
-            req.close()
-        await ses.close()
+                return None
 
 
 class CheckServer:

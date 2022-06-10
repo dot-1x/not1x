@@ -194,7 +194,8 @@ class MapCommands(commands.Cog):
                 seconds=Data.TASK_INTERVAL.value,
                 view=_v,
             )
-            loop.start()
+            # self.bot.loop_maptsk[ipport] = loop
+            # loop.start()
 
             _sv_list.append(ipport)
             with open(self.bot.config["path"], "w") as w:

@@ -67,13 +67,14 @@ class EditMsg(tasks.Loop):
                 _logger.error(f"Cannot send message on {self.channel.id} with error: {e}")
             await updatetracking(self.guild, self.ip, msg.id)
         except Exception as e:
-            _logger.error(f"Cannot edit message {self.ip} on {self.guild} with error: {e}")
+            pass
+            # _logger.error(f"Cannot edit message {self.ip} on {self.guild} with error: {e}")
         _et = datetime.datetime.now()
-        self.stop()
+        # self.stop()
         # _logger.debug(_et-_st)
 
 
-class ServerTask(tasks.Loop):
+class ServerTask:
     def __init__(
         self,
         bot: commands.Bot,
@@ -104,17 +105,17 @@ class ServerTask(tasks.Loop):
         self._down = False
         self._msgs = {}
 
-        super().__init__(
-            coro=self.servercheck,
-            seconds=seconds,
-            hours=MISSING,
-            minutes=MISSING,
-            time=MISSING,
-            count=count,
-            reconnect=reconnect,
-            loop=asyncio.get_event_loop(),
-        )
-        self.add_exception_type(OperationalError)
+        # super().__init__(
+        #     coro=self.servercheck,
+        #     seconds=seconds,
+        #     hours=MISSING,
+        #     minutes=MISSING,
+        #     time=MISSING,
+        #     count=count,
+        #     reconnect=reconnect,
+        #     loop=asyncio.get_event_loop(),
+        # )
+        # self.add_exception_type(OperationalError)
         bot.loop_maptsk[ipport] = self
 
     def start(self, *args, **kwargs):
@@ -132,10 +133,26 @@ class ServerTask(tasks.Loop):
 
         return _server.status
 
+    async def editmsg(self,guild: int,ip: str,message: int,channel: discord.TextChannel,embed: discord.Embed,view: discord.ui.View):
+        msg: discord.PartialMessage = channel.get_partial_message(message)
+        try:
+            await msg.edit(embed=embed)
+        except discord.NotFound:
+            try:
+                msg = await channel.send(embed=embed, view=view)
+            except discord.Forbidden:
+                _logger.warning(f"Cannot send tracking message to {channel.id}")
+                return
+            except Exception as e:
+                _logger.error(f"Cannot send message on {channel.id} with error: {e}")
+            await updatetracking(guild, ip, msg.id)
+        except Exception as e:
+            pass
+
     async def servercheck(self):
         _st = datetime.datetime.now()
 
-        self.get_task().set_name(self.ipport)
+        # self.get_task().set_name(self.ipport)
 
         ip = ip_address(self.ipport.split(":")[0])
         port = int(self.ipport.split(":")[1])
@@ -197,18 +214,17 @@ class ServerTask(tasks.Loop):
             _logger.info(f"Connection established for {self.ipport}")
 
         async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
-            await asyncio.sleep(0.2)
             channel: discord.TextChannel = self.bot.get_channel(channel)
             if not channel:
                 continue
 
-            guild_message = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
+            # guild_message = EditMsg(guild, tracking_ip, message, channel, server_info, self._view)
 
             if self._retries >= 10:
                 if self._retries == 10:
                     _logger.warning(f"Connection Timeout for {self.ipport}")
                     try:
-                        guild_message.start()
+                        await asyncio.wait_for(self.editmsg(guild, tracking_ip, message, channel, server_info, self._view), 30)
                     except:
                         pass
                 if self._retries == 10080:
@@ -220,7 +236,7 @@ class ServerTask(tasks.Loop):
                         _logger.error(f"Cant delete message on {guild}")
                     self.stop()
                 continue
-            guild_message.start()
+            await asyncio.wait_for(self.editmsg(guild, tracking_ip, message, channel, server_info, self._view), 30)
 
         if not self._notif and self.ipport != "103.62.48.10:27058":
             self._notif = True
@@ -238,4 +254,4 @@ class ServerTask(tasks.Loop):
                     except:
                         _logger.warning(f"Cannot send message to {userid}")
         _et = datetime.datetime.now()
-        # _logger.debug(f"Finished looping {self.ipport} in: {_et-_st}")
+        _logger.debug(f"Finished looping {self.ipport} in: {_et-_st}")

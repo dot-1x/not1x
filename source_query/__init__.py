@@ -11,26 +11,30 @@ from a2s.info import SourceInfo
 
 async def get_location(ip: str) -> dict | None:
     url = f"https://www.gametracker.com/server_info/{ip}"
-    async with aiohttp.request("get", url) as req:
-        if req.status != 200:
-            return None
+    async with aiohttp.ClientSession() as ses:
+        async with ses.get(url) as req:
+            if req.status != 200:
+                return None
 
-        c = await req.text(encoding="utf-8")
-        try:
-            _content = bs(c, "html.parser")
-            _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
-            _image = _country.find("img")
-        except:
-            return None
+            c = await req.text(encoding="utf-8")
+            try:
+                _content = bs(c, "html.parser")
+                _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
+                _image = _country.find("img")
+            except:
+                return None
 
-        with open("country.json", "r") as j:
-            js = json.load(j)
-            for k in js.keys():
-                if _image["title"].lower() in k.lower():
-                    return {
-                        "flag": f":flag_{js[k].lower()}:",
-                        "location": _image["title"],
-                    }
+            with open("country.json", "r") as j:
+                js = json.load(j)
+                for k in js.keys():
+                    if _image["title"].lower() in k.lower():
+                        return {
+                            "flag": f":flag_{js[k].lower()}:",
+                            "location": _image["title"],
+                        }
+                j.close()
+            req.close()
+        await ses.close()
 
 
 class CheckServer:

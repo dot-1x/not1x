@@ -189,7 +189,7 @@ class ServerTask:
                 Status.ONLINE.value if self.isonline else Status.OFFLINE.value,
                 True,
             ),
-            # ("Location : ", f"{_server.flag} {_server.location}", True),
+            ("Location : ", f"{_server.flag} {_server.location}", True),
             (
                 "Quick Connect : ",
                 f"steam://connect/{_server.ip_port[0]}:{_server.ip_port[1]}",

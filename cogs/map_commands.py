@@ -50,6 +50,7 @@ class MapCommands(commands.Cog):
                 ":green_circle: Online!" if _server.status else ":red_circle: Offline!",
                 True,
             ),
+            ("Location : ", f"{_server.flag} {_server.location}", True),
             (
                 "Quick Connect : ",
                 f"steam://connect/{_server.ip_port[0]}:{_server.ip_port[1]}",

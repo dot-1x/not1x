@@ -1,4 +1,5 @@
 import asyncio
+import aiohttp
 import a2s
 import ipaddress
 import requests
@@ -8,13 +9,13 @@ from bs4 import BeautifulSoup as bs
 from a2s.info import SourceInfo
 
 
-def get_location(ip: str) -> dict | None:
+async def get_location(ip: str) -> dict | None:
     url = f"https://www.gametracker.com/server_info/{ip}"
-    with requests.get(url=url) as req:
-        if req.status_code != 200:
+    async with aiohttp.request("get", url) as req:
+        if req.status != 200:
             return None
 
-        c = req.text
+        c = await req.text(encoding="utf-8")
         try:
             _content = bs(c, "html.parser")
             _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
@@ -67,13 +68,13 @@ class CheckServer:
             _server = SourceInfo
             return cls(ip, port, _server, name=f"{str(ip)}:{port}")
         else:
-            # _location = get_location(f"{str(ip)}:{port}")
-            # if not _location:
-            #     _loc = "Unknown!"
-            #     _flag = ":pirate_flag:"
-            # else:
-            #     _loc = _location["location"]
-            #     _flag = _location["flag"]
+            _location = await get_location(f"{str(ip)}:{port}")
+            if not _location:
+                _loc = "Unknown!"
+                _flag = ":pirate_flag:"
+            else:
+                _loc = _location["location"]
+                _flag = _location["flag"]
             return cls(
                 ip,
                 port,
@@ -83,8 +84,8 @@ class CheckServer:
                 maps=_server.map_name,
                 players=_server.player_count,
                 maxplayers=_server.max_players,
-                # location=_loc,
-                # location_flag=_flag,
+                location=_loc,
+                location_flag=_flag,
             )
 
     async def GetPlayers(self) -> None | list:

@@ -3,4 +3,4 @@ aiomysql
 bs4
 python-a2s
 requests
-Pillow==9.0
+Pillow>=9.0

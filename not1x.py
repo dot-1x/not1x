@@ -1,18 +1,18 @@
 import asyncio
-from datetime import datetime
 import pathlib
 import typing as t
 import os
 import discord
 import ui_utils
 
+from tasks.map_task import ServerTask
+from datetime import datetime
 from db import loadguild, connection
 from enums import *
 from logs import setlog
 from discord.ext import bridge, commands, tasks
 from discord.ext.commands.errors import *
 from command_error import CheckError, StdErrChannel
-from tasks.map_task import ServerTask
 from ipaddress import ip_address
 
 __version__ = "0.3.3"
@@ -44,7 +44,6 @@ class Bot(bridge.Bot):
             intents=discord.Intents.all(),
             help_command=self.help,
         )
-
         _logger.info("++++++ Loading not1x ++++++")
         _logger.info(f"Version: {__version__}")
         try:
@@ -56,7 +55,8 @@ class Bot(bridge.Bot):
 
         self._pl_list_button = False
         self._persiew = {}
-        self.loop_maptsk: ServerTask = {}
+        self.loop_maptsk = {}
+        self.cached_user = []
 
         self.load_extension_from("cogs")
         # self.load_extension("utils")
@@ -86,7 +86,7 @@ class Bot(bridge.Bot):
             # loop.start()
 
         @tasks.loop(seconds=60)
-        async def globalloops():
+        async def globalqueryloop():
             _s = datetime.now()
             _logger.debug(f"Started loop at: {_s.__str__()}")
             for l in self.loop_maptsk.values():
@@ -95,7 +95,8 @@ class Bot(bridge.Bot):
             _logger.debug(f"Loop ended at: {_e.__str__()}")
             _logger.debug(f"Loop done in: {_e - _s}")
 
-        globalloops.start()
+        globalqueryloop.start()
+        globalqueryloop.get_task().set_name("globalqueryloop")
         self._pl_list_button = True
         _logger.info("loop map task has been started!")
 
@@ -126,8 +127,10 @@ class Bot(bridge.Bot):
             await loadguild(guild.id)
 
         self.map_tasks()
+
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")
+
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
 
     async def on_guild_join(self, guild: discord.Guild):

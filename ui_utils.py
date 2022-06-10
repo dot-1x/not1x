@@ -1,9 +1,8 @@
 import discord
 import typing as t
-import secrets
 
 from logs import setlog
-from discord.ext import commands, pages
+from discord.ext import pages
 from enums import *
 from itertools import chain
 from db import *

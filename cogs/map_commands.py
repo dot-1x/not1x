@@ -13,15 +13,14 @@ from db import (
     gettracking,
     inserttracking,
     updatechannel,
-    updatetracking,
 )
 from enums import *
-from discord.ext import commands, bridge, pages, tasks
+from discord.ext import commands, pages, tasks
 from logs import setlog
 from map_list.findmap import updatemap
 from source_query import CheckServer
 from tasks.map_task import ServerTask
-from discord.commands import SlashCommandGroup, permissions, slash_command
+from discord.commands import SlashCommandGroup, slash_command
 
 _logger = setlog(__name__)
 

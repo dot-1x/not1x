@@ -3,11 +3,8 @@ import json
 import aiomysql
 import typing as t
 
-from ipaddress import ip_address
 from itertools import chain
-from discord.ext import commands
 from logs import setlog
-from pymysql.err import OperationalError
 
 
 _logger = setlog(__name__)

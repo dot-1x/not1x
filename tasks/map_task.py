@@ -264,4 +264,3 @@ class ServerTask:
             await asyncio.wait_for(self.editmsg(guild, tracking_ip, message, channel, server_info, self._view), 30)
 
         _et = datetime.now()
-        _logger.debug(f"Finished looping {self.ipport} in: {_et-_st}")

@@ -1,9 +1,11 @@
 import asyncio
 import pathlib
+import traceback
 import typing as t
 import os
 import discord
 import ui_utils
+
 
 from tasks.map_task import ServerTask
 from datetime import datetime
@@ -15,7 +17,7 @@ from discord.ext.commands.errors import *
 from command_error import CheckError, StdErrChannel
 from ipaddress import ip_address
 
-__version__ = "0.3.3"
+__version__ = "0.4"
 __all__ = ["Bot"]
 
 _logger = setlog(__name__)
@@ -56,7 +58,6 @@ class Bot(bridge.Bot):
         self._pl_list_button = False
         self._persiew = {}
         self.loop_maptsk = {}
-        self.cached_user = []
 
         self.load_extension_from("cogs")
         # self.load_extension("utils")
@@ -67,7 +68,6 @@ class Bot(bridge.Bot):
 
     def map_tasks(self):
         _sv_list = self.config["serverquery"]
-        loops = []
         for _sv in _sv_list:
             if not ":" in _sv:
                 _logger.warning('Missing delimiter ":" on ' + _sv)
@@ -78,25 +78,33 @@ class Bot(bridge.Bot):
                 _logger.warning(str(e) + " on " + _sv)
                 continue
             if not self._pl_list_button:
-                _view = ui_utils.PlayerListV.generate_view(_sv.split(":")[0], _sv.split(":")[1])
+                _view = ui_utils.PlayerListV(self, _sv.split(":")[0], _sv.split(":")[1])
                 self.persview[_sv] = _view
                 self.add_view(_view)
 
-            loop = ServerTask(self, _sv, _sv, Data.TASK_INTERVAL.value, self.persview[_sv])
-            # loop.start()
+            ServerTask(self, _sv, _sv, self.persview[_sv])
 
         @tasks.loop(seconds=60)
         async def globalqueryloop():
             _s = datetime.now()
-            _logger.debug(f"Started loop at: {_s.__str__()}")
+            # _logger.debug(f"Started loop at: {_s.__str__()}")
             for l in self.loop_maptsk.values():
+                l: ServerTask
                 await asyncio.wait_for(l.servercheck(), 60)
             _e = datetime.now()
-            _logger.debug(f"Loop ended at: {_e.__str__()}")
-            _logger.debug(f"Loop done in: {_e - _s}")
+            # _logger.debug(f"Loop ended at: {_e.__str__()}")
+            # _logger.debug(f"Loop done in: {_e - _s}")
+
+        @globalqueryloop.error
+        async def on_loop_err(error: discord.DiscordException):
+            _logger.error(f"global loop encountered an error: {error}")
+            with open("logs/traceback.log", "a") as f:
+                f.write(str(datetime.utcnow()) + "\n" + str(error.with_traceback(error.__traceback__)) + "\n")
+                traceback.print_tb(error.__traceback__, file=f)
 
         globalqueryloop.start()
         globalqueryloop.get_task().set_name("globalqueryloop")
+
         self._pl_list_button = True
         _logger.info("loop map task has been started!")
 

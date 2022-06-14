@@ -1,3 +1,4 @@
+from inspect import trace
 import secrets
 import traceback
 import typing as t
@@ -101,11 +102,7 @@ async def CheckError(
 
     with open("logs/traceback.log", "a") as f:
         f.write(
-            str(datetime.utcnow())
-            + "\n"
-            + f"ID: {_err_id}\n"
-            + str(error.with_traceback(error.__traceback__))
-            + "\n"
+            str(datetime.utcnow()) + "\n" + f"ID: {_err_id}\n" + str(error.with_traceback(error.__traceback__)) + "\n"
         )
         traceback.print_tb(error.__traceback__, file=f)
 

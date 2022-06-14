@@ -2,30 +2,31 @@ import asyncio
 import aiohttp
 import a2s
 import ipaddress
-import requests
+import discord
 import json
 
+from logs import setlog
 from bs4 import BeautifulSoup as bs
 from a2s.info import SourceInfo
+
+_logger = setlog("SourceQuery")
 
 
 async def get_location(ip: str) -> dict | None:
     url = f"https://www.gametracker.com/server_info/{ip}"
+    _res = {"flag": ":pirate_flag:", "location": "Unknown!"}
     async with aiohttp.ClientSession() as ses:
         async with ses.get(url) as req:
             if req.status != 200:
-                return None
+                return _res
 
-            c = await req.text(encoding="utf-8")
+            c = await req.text()
             try:
                 _content = bs(c, "html.parser")
                 _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
                 _image = _country.find("img")
             except:
-
-                return None
-            req.close()
-            await ses.close()
+                return _res
             with open("country.json", "r") as j:
                 country = json.load(j)
                 for k in country.keys():
@@ -34,71 +35,84 @@ async def get_location(ip: str) -> dict | None:
                             "flag": f":flag_{country[k].lower()}:",
                             "location": _image["title"],
                         }
-                        j.close()
                         return _res
-                j.close()
-                return None
+                return _res
 
 
-class CheckServer:
-    def __init__(
-        self,
-        ip: ipaddress.ip_address,
-        port: int,
-        server: SourceInfo,
-        *,
-        status: bool = False,
-        name: str = "Unknown",
-        maps: str = "Unkown",
-        players: int = 0,
-        maxplayers: int = 0,
-        location: str = "Unknown!",
-        location_flag: str = ":pirate_flag:",
-    ) -> None:
-        self.ip = ipaddress.ip_address(ip)
-        self.port = int(port)
-        self.ip_port = (str(self.ip), self.port)
-        self.server = server
+class ServerInfo(discord.Embed):
+    def __init__(self, ip: str, port: int, location: dict, server: SourceInfo, status: bool) -> None:
+
+        self.ip_port = (str(ip), port)
         self.status = status
-        self.name = name
-        self.maps = maps
-        self.players = players
-        self.maxplayers = maxplayers
-        self.location = location
-        self.flag = location_flag
 
-    @classmethod
-    async def GetServer(cls, ip: ipaddress.ip_address, port: int):
+        _ip = ipaddress.ip_address(ip)
+        _port = int(port)
+        _loc = location
+        _server = server
+
+        fields = [
+            (
+                "Status : ",
+                ":green_circle: Online!" if self.status else ":red_circle: Offline",
+                True,
+            ),
+            ("Location : ", f"{_loc['flag']} {_loc['location']}", True),
+            (
+                "Quick Connect : ",
+                f"steam://connect/{str(_ip)}:{_port}",
+                False,
+            ),
+            ("Map : ", _server.map_name, True),
+            ("Players : ", f"{_server.player_count}/{_server.max_players}", True),
+        ]
+
+        super().__init__(colour=discord.Colour.blurple(), title=_server.server_name, timestamp=discord.utils.utcnow())
+
+        for (
+            _name,
+            _value,
+            _inline,
+        ) in fields:
+            self.add_field(name=_name, value=_value, inline=_inline)
+
+        self.__sv: SourceInfo = _server
+        self.colour = discord.Colour.blurple()
+        self.title = _server.server_name
+        self.timestamp = discord.utils.utcnow()
+
+    @property
+    def name(self):
+        return self.__sv.server_name
+
+    @property
+    def maps(self):
+        return self.__sv.map_name
+
+    @property
+    def maxplayers(self):
+        return self.__sv.max_players
+
+    async def players(self):
         try:
-            _server: SourceInfo = await a2s.ainfo((str(ip), port), timeout=1)
-        except asyncio.exceptions.TimeoutError:
-            _server = SourceInfo
-            return cls(ip, port, _server, name=f"{str(ip)}:{port}")
-        else:
-            _location = await get_location(f"{str(ip)}:{port}")
-            if not _location:
-                _loc = "Unknown!"
-                _flag = ":pirate_flag:"
-            else:
-                _loc = _location["location"]
-                _flag = _location["flag"]
-            return cls(
-                ip,
-                port,
-                _server,
-                status=True,
-                name=_server.server_name,
-                maps=_server.map_name,
-                players=_server.player_count,
-                maxplayers=_server.max_players,
-                location=_loc,
-                location_flag=_flag,
-            )
+            return await a2s.aplayers((str(self.ip_port[0]), self.ip_port[1]), timeout=1)
+        except Exception as e:
+            _logger.warning(f"Failed to get {self.ip_port} player list\n" + e)
+            return []
 
-    async def GetPlayers(self) -> None | list:
-        try:
-            self.player_list = await a2s.aplayers(self.ip_port, timeout=1)
-        except asyncio.exceptions.TimeoutError:
-            self.player_list = None
 
-        return self.player_list
+async def GetServer(ip: str, port: int):
+    loc = await get_location(f"{str(ip)}:{port}")
+    ip_port = (str(ip), port)
+    try:
+        _server: SourceInfo = await a2s.ainfo((str(ip), port), timeout=1)
+    except Exception as e:
+        _server = SourceInfo()
+        _server.map_name = "Unknown!"
+        _server.player_count = 0
+        _server.max_players = 0
+        _server.server_name = ip_port
+        status = False
+    else:
+        status = True
+
+    return ServerInfo(ip, port, loc, _server, status)

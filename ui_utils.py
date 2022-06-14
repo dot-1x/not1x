@@ -2,42 +2,36 @@ import discord
 import typing as t
 
 from logs import setlog
-from discord.ext import pages
+from discord.ext import pages, commands
 from enums import *
 from itertools import chain
 from db import *
-from source_query import CheckServer
+from source_query import GetServer
 from ipaddress import ip_address
 
 _logger = setlog(__name__)
 
 
 class PlayerListV(discord.ui.View):
-    def __init__(self, ip: str, port: int):
+    def __init__(self, bot: commands.Bot, ip: str, port: int):
 
         self.ip = ip_address(ip)
         self.port = port
+        self.bot = bot
 
         super().__init__(timeout=None)
-
-    @classmethod
-    def generate_view(cls, ip: str, port: int):
-        v = cls(ip, port)
-
         btn = discord.ui.Button(
             custom_id=f"{ip}:{port}",
             style=discord.ButtonStyle.secondary,
             label="Player List",
         )
-        btn.callback = v.sendplayer
-        v.add_item(btn)
-
-        return v
+        btn.callback = self.sendplayer
+        self.add_item(btn)
 
     async def sendplayer(self, _interaction: discord.Interaction):
-        _sv = await CheckServer.GetServer(self.ip, self.port)
-        _pl = await _sv.GetPlayers()
-        if not _pl:
+        _sv = await GetServer(self.ip, self.port)
+        _pl = await _sv.players()
+        if not len(_pl):
             await _interaction.response.send_message("Server doesn't respond or no players online", ephemeral=True)
             return
 

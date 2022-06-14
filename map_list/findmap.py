@@ -1,8 +1,6 @@
 import asyncio
 import aiohttp
 import re
-import discord
-import requests
 
 from logs import setlog
 from datetime import datetime

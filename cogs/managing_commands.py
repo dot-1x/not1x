@@ -47,20 +47,6 @@ class AdminCommands(commands.Cog):
             delete_after=5,
         )
 
-    @discord.slash_command(guild_ids=[Data.OWNER_GUILD.value])
-    async def restart_loop_map(self, ctx: discord.ApplicationContext):
-        loops = [l.get_name() for l in asyncio.all_tasks() if l.get_name() in self.bot.loop_maptsk]
-        stopped_loop = [l for l in self.bot.loop_maptsk.keys() if l not in loops]
-
-        lembed = discord.Embed(title="Running Loop", color=discord.Colour.blurple())
-        lembed.description = "\n".join(loops)
-
-        sembed = discord.Embed(title="Stopped Loop", color=discord.Colour.blurple())
-        sembed.description = "\n".join(stopped_loop)
-
-        await ctx.respond(embeds=[lembed, sembed])
-        await restart_map_loop(self.bot)
-
 
 def setup(bot: commands.Bot):
     bot.add_cog(AdminCommands(bot))

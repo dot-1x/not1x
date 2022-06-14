@@ -17,8 +17,8 @@ from db import (
 from enums import *
 from discord.ext import commands, pages, tasks
 from logs import setlog
-from map_list.findmap import updatemap
-from source_query import CheckServer
+from map_list.findmap import updatemap, aupdatemap
+from source_query import GetServer
 from tasks.map_task import ServerTask
 from discord.commands import SlashCommandGroup, slash_command
 
@@ -36,61 +36,30 @@ class MapCommands(commands.Cog):
     @discord.option(name="ip", type=str, description="A server ip address")
     @discord.option(name="port", type=int, description="A server port")
     async def info(self, ctx: discord.ApplicationContext, ip: str, port: int):
-
+        await ctx.defer()
         ip = ip_address(ip)
         port = port
-        _server = await CheckServer.GetServer(ip, port)
-
-        server_info = discord.Embed()
-        server_info.title = _server.name
-
-        fields = [
-            (
-                "Status : ",
-                ":green_circle: Online!" if _server.status else ":red_circle: Offline!",
-                True,
-            ),
-            ("Location : ", f"{_server.flag} {_server.location}", True),
-            (
-                "Quick Connect : ",
-                f"steam://connect/{_server.ip_port[0]}:{_server.ip_port[1]}",
-                False,
-            ),
-            ("Map : ", _server.maps, True),
-            ("Players : ", f"{_server.players}/{_server.maxplayers}", True),
-        ]
-
-        for (
-            _name,
-            _value,
-            _inline,
-        ) in fields:
-            server_info.add_field(name=_name, value=_value, inline=_inline)
+        _server = await GetServer(ip, port)
 
         class ButtonView(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=30)
 
-            async def on_timeout(self) -> None:
-                return await super().on_timeout()
-
             @discord.ui.button(label="Player List", style=discord.ButtonStyle.secondary)
             async def sendplayer(self, _button: discord.ui.Button, _interaction: discord.Interaction):
-                self.intercation = _interaction
 
-                _sv = await CheckServer.GetServer(ip, port)
-                _pl = await _sv.GetPlayers()
+                _pl = await _server.players()
                 if not _pl:
                     await _interaction.response.send_message("Server doesn't respond", ephemeral=True)
                     return
 
-                _logger.info(f"Sending player list {_sv.ip_port} to {_interaction.user}")
+                _logger.info(f"Sending player list {_server.ip_port} to {_interaction.user}")
 
                 _players = "\n".join(sorted([p.name for p in _pl]))
 
                 try:
                     await _interaction.user.send(
-                        content=f"**{_server.name}** ({len(_pl)}/{_sv.maxplayers})\n```{_players}```"
+                        content=f"**{_server.name}** ({len(_pl)}/{_server.maxplayers})\n```{_players}```"
                     )
                     await _interaction.response.send_message("Player list sent to pm", ephemeral=True)
                 except discord.Forbidden:
@@ -101,13 +70,15 @@ class MapCommands(commands.Cog):
                     _logger.warning(e)
 
         _view = ButtonView()
-        server_info.set_author(name=ctx.author)
-        server_info.timestamp = discord.utils.utcnow()
+        _server.set_author(name=ctx.author, icon_url=ctx.author.avatar.url)
 
-        await ctx.respond(embed=server_info, view=_view)
+        await ctx.respond(embed=_server, view=_view)
         await _view.wait()
         _view.disable_all_items()
-        await ctx.edit(embed=server_info, view=_view)
+        try:
+            await ctx.edit(embed=_server, view=_view)
+        except:
+            _logger.warning("Couldn't edit message")
 
     @server.command(description="Get this guild map tracking list")
     async def list(self, ctx: discord.ApplicationContext):
@@ -171,7 +142,7 @@ class MapCommands(commands.Cog):
             await ctx.respond("Please specify a tracking channel first")
             return
 
-        serverstatus = await CheckServer.GetServer(ip=ip, port=port)
+        serverstatus = await GetServer(ip=ip, port=port)
 
         if ipport in _tracking:
             await ctx.respond("Given server ip is already on map tracking")
@@ -184,18 +155,15 @@ class MapCommands(commands.Cog):
         _sv_list = self.bot.config["serverquery"]
 
         if ipport not in _sv_list:
-            _v = ui_utils.PlayerListV.generate_view(ip=str(ip), port=port)
+            _v = ui_utils.PlayerListV(bot=self.bot, ip=str(ip), port=port)
             self.bot.persview[ipport] = _v
 
             loop = ServerTask(
                 bot=self.bot,
                 name=ipport,
                 ipport=ipport,
-                seconds=Data.TASK_INTERVAL.value,
                 view=_v,
             )
-            # self.bot.loop_maptsk[ipport] = loop
-            # loop.start()
 
             _sv_list.append(ipport)
             with open(self.bot.config["path"], "w") as w:
@@ -227,6 +195,7 @@ class MapCommands(commands.Cog):
 
         await ctx.respond("please wait till i finish updating map list...")
 
+        # self.bot.loop.run_until_complete(await aupdatemap())
         p = Process(target=updatemap, name="Updatemap")
         p.start()
 

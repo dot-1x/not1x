@@ -196,18 +196,28 @@ async def gettracking(guild: int, ip: str = None) -> list:
     return [_r for _r in rs if _r != "0"] if r else []
 
 
-async def updateserver(ip: str, map_history: dict):
+async def updateserver(ip: str, data: dict):
     db = await connection.conn()
-    await db.cursor.execute("SELECT `maphistory` FROM `server_info` WHERE `tracking_ip` = %s", (ip))
+    await db.cursor.execute("SELECT `history` FROM `server_info` WHERE `tracking_ip` = %s", (ip))
     r = await db.cursor.fetchone()
     if not r:
-        q = "INSERT INTO `server_info`(`tracking_ip`, `maphistory`) VALUES (%s, %s)"
-        await db.cursor.execute(q, (ip, map_history))
+        q = "INSERT INTO `server_info` (`tracking_ip`, `history`) VALUES (%s, %s)"
+        await db.cursor.execute(q, (ip, json.dumps(data)))
     else:
-        _history = json.loads(r[0].replace("'", '"')) if r[0] else {}
-        _history.popitem
+        q = "UPATE `server_info` SET `history` = %s WHERE `tracking_ip` = %s"
+        await db.cursor.execute(q, (json.dumps(data), ip))
+    await db.connection.commit()
 
-
+async def getserverdata():
+    db = await connection.conn()
+    await db.cursor.execute("SELECT * FROM `server_info`")
+    r = await db.cursor.fetchall()
+    data = {}
+    for _, ip, _data in r:
+        data[ip] = json.loads(_data)
+    print(data)
+    return data
+    
 class iterdb:
     def __init__(self, data=t.Union[list, tuple]) -> None:
         self.count = 0
@@ -225,15 +235,5 @@ class iterdb:
 
 
 if __name__ == "__main__":  # for debug/testing
-    dd = {"serverip": "dsadwdsawdsaw", "aserverip": "dsadwdsawdsaw"}
-
-    async def test():
-        db = await connection.conn()
-        await db.cursor.execute(
-            "SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s",
-            ("620983321677004800", "216.52.148.47:27015"),
-        )
-        r = db.cursor.fetchall()
-        print(r)
-
-    asyncio.run(test())
+    # print(json.dumps({"players":[1,2,3,4], "map":["ze_ze", "zeeeze", "zezezee"]}))
+    asyncio.run(getserverdata())

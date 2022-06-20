@@ -1,8 +1,9 @@
 import asyncio
 import not1x
+import numpy as np
 
-from discord.ext import commands, tasks
 from logs import setlog
+from PIL import Image
 
 _logger = setlog(__name__)
 

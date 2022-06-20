@@ -1,4 +1,5 @@
 import asyncio
+import json
 import pathlib
 import traceback
 import typing as t
@@ -9,7 +10,7 @@ import ui_utils
 
 from tasks.map_task import ServerTask
 from datetime import datetime
-from db import loadguild, connection
+from db import getserverdata, loadguild, connection
 from enums import *
 from logs import setlog
 from discord.ext import bridge, commands, tasks
@@ -34,11 +35,12 @@ class CustomHelp(commands.HelpCommand):
 
 class Bot(bridge.Bot):
     def __init__(self, config: dict, *, token: str):
-        self.prefix = "."
+        self.prefix = "]"
         self.ready = False
         self.help = CustomHelp()
         self.config = config
         self.__token = token
+        self._fail_connect = False
         super().__init__(
             command_prefix=self.prefix,
             owner_ids=Data.OWNER.value,
@@ -53,7 +55,7 @@ class Bot(bridge.Bot):
             loop.run_until_complete(connection.conn())
         except:
             _logger.critical("Failed to connect to database")
-            return
+            self._fail_connect = True
 
         self._pl_list_button = False
         self._persiew = {}
@@ -64,6 +66,10 @@ class Bot(bridge.Bot):
         self.add_bridge_command(self.reload_ext)
 
     def run(self):
+        if self._fail_connect:
+            _logger.error("Connection is failed!")
+            self.loop.stop()
+            return
         super().run(self.__token)
 
     def map_tasks(self):
@@ -118,10 +124,6 @@ class Bot(bridge.Bot):
             raise ValueError(f"key: {key} is already on persistent view")
         self._persiew[key] = val
 
-    def add_cog(self, cog: commands.Cog, *, override: bool = False) -> None:
-        # _logger.info(f"Loading: {cog.__cog_name__}")
-        return super().add_cog(cog, override=override)
-
     ####################### Bot's event handler #######################
     async def on_ready(self):
 
@@ -132,8 +134,15 @@ class Bot(bridge.Bot):
         self.ready = True
 
         async for guild in self.fetch_guilds():
-            await loadguild(guild.id)
-
+            try:
+                await loadguild(guild.id)
+            except:
+                _logger.critical("Failed to load guild from database")
+                self.loop.stop()
+        
+        # self.server_data = await asyncio.wait_for(getserverdata(), 10)
+        with open("server_data.json", "r") as j:
+            self.server_data = json.load(j)
         self.map_tasks()
 
         for c in self.cogs:

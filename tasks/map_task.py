@@ -1,4 +1,8 @@
+from __future__ import annotations
+
 import asyncio
+from http import server
+import json
 import discord
 import typing as t
 
@@ -8,22 +12,24 @@ from db import (
     fetchip,
     fetchuser,
     getnotify,
+    updateserver,
     updatetracking,
 )
 from ipaddress import ip_address
 from logs import setlog
-from discord import MISSING
 from enums import *
-from source_query import GetServer
+from source_query import GetServer, ServerInfo
 from datetime import datetime
 
-_logger = setlog(__name__)
+if t.TYPE_CHECKING:
+    import not1x
 
+_logger = setlog(__name__)
 
 class ServerTask:
     def __init__(
         self,
-        bot: commands.Bot,
+        bot: not1x.Bot,
         name: str,
         ipport: str,
         view: discord.ui.View,
@@ -44,10 +50,10 @@ class ServerTask:
         self._notif = True
         self._retries = 0
         self._view = view
-        self._timedout = False
-        self._down = False
-        self._msgs = {}
 
+        self._data = {}
+
+        self._maptime = datetime.now()
         bot.loop_maptsk[ipport] = self
 
     async def editmsg(
@@ -61,22 +67,23 @@ class ServerTask:
     ):
         msg: discord.PartialMessage = channel.get_partial_message(message)
         try:
-            await msg.edit(embed=embed)
+            await msg.edit(embed=embed, view=view)
         except discord.NotFound:
             try:
                 msg = await channel.send(embed=embed, view=view)
+                await updatetracking(guild, ip, msg.id)
             except discord.Forbidden:
                 _logger.warning(f"Cannot send tracking message to {channel.id}")
-                return
+            except TimeoutError:
+                _logger.critical(f"Failed to update to database")
             except Exception as e:
-                _logger.error(f"Cannot send message on {channel.id} with error: {e}")
-            await updatetracking(guild, ip, msg.id)
+                _logger.error(f"Cannot update message on {channel.id} with error: {e}")
         except Exception as e:
-            pass
+            _logger.error(e)
 
     async def servercheck(self):
         _st = datetime.now()
-
+        
         ip = ip_address(self.ipport.split(":")[0])
         port = int(self.ipport.split(":")[1])
 
@@ -84,15 +91,46 @@ class ServerTask:
 
         self.isonline = server_info.status
 
-        if self.mapname != server_info.maps and server_info.status:
+        if not server_info.status:
+            return
+
+        date_now = _st.strftime("%D")
+        
+        if self.ipport in self.bot.server_data:
+            self._data = self.bot.server_data[self.ipport]
+
+        if not date_now in self._data:
+            self._data[date_now] = {
+                "players" : [],
+                "maps" : {}
+            }
+        
+        self._data[date_now]["players"].append(server_info.player)
+        if self.mapname != server_info.maps:
+            self._maptime = _st
             self.mapname = server_info.maps
+            if self.mapname in self._data[date_now]["maps"]:
+                self._data[date_now]["maps"][self.mapname]["played"] += 1
+                self._data[date_now]["maps"][self.mapname]["lastplayed"] = round(self._maptime.timestamp())
+            else:
+                self._data[date_now]["maps"][self.mapname] = {
+                    "played":1,
+                    "lastplayed":round(self._maptime.timestamp())
+                }
+
             self.playedtime = round(datetime.now().timestamp())
             self._notif = False
-            if self.serverinfo:
-                _history = discord.Embed()
-                _history.title = server_info.name + " Map history"
-                _history.add_field(name=server_info.maps, value=f"<t:{self.playedtime}:R>", inline=False)
-                _hdict = {self.playedtime: _history.to_dict()}
+
+        self.bot.server_data[self.ipport] = self._data
+
+        with open("server_data.json", "w") as j:
+            json.dump(self.bot.server_data, j, indent=4)
+
+        # try:
+        #     await updateserver(self.ipport, self._data)
+        # except Exception as e:
+        #     _logger.error("Failed to update server history")
+        #     _logger.error(e)
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
 

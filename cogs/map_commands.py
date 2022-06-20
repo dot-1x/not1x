@@ -257,10 +257,10 @@ class MapCommands(commands.Cog):
         _pages = [
             [
                 discord.Embed(
-                    title=ctx.author.name + " Map Notification",
+                    title="Map Notification",
                     description="\n".join(user_notify[x : x + 25]),
                     color=ctx.author.colour,
-                )
+                ).set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url if ctx.author.display_avatar else discord.Embed.Empty)
             ]
             for x in range(0, len(user_notify), 25)
         ]
@@ -281,7 +281,3 @@ class MapCommands(commands.Cog):
 
 def setup(bot):
     bot.add_cog(MapCommands(bot))
-
-
-def teardown(bot: commands.Bot):
-    bot.remove_cog(MapCommands(bot))

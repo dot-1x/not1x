@@ -92,11 +92,15 @@ class ServerInfo(discord.Embed):
     def maxplayers(self):
         return self.__sv.max_players
 
+    @property
+    def player(self):
+        return self.__sv.player_count
+
     async def players(self):
         try:
             return await a2s.aplayers((str(self.ip_port[0]), self.ip_port[1]), timeout=1)
         except Exception as e:
-            _logger.warning(f"Failed to get {self.ip_port} player list\n" + e)
+            _logger.warning(f"Failed to get {self.ip_port} player list\n" + str(e))
             return []
 
 

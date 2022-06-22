@@ -1,5 +1,4 @@
 import asyncio
-import json
 import pathlib
 import traceback
 import typing as t
@@ -147,10 +146,10 @@ class Bot(bridge.Bot):
 
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
 
-    async def on_disconnect():
+    async def on_disconnect(*args, **kwargs):
         _logger.info("Bot has been disconnected from discord")
 
-        return super().on_disconnect()
+        return super().on_disconnect(*args, **kwargs)
 
     async def on_guild_join(self, guild: discord.Guild):
         await loadguild(guild.id)

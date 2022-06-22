@@ -262,7 +262,7 @@ class iterdb:
 if __name__ == "__main__":  # for debug/testing
     # print(json.dumps({"players":[1,2,3,4], "map":["ze_ze", "zeeeze", "zezezee"]}))
     async def test():
-        x = await fetchserverdata("1")
-        print(x)
+        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await getserverdata(), key=lambda x: x[4], reverse=True)):
+            print(lastplayed)
 
     asyncio.run(test())

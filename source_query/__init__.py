@@ -114,7 +114,7 @@ async def GetServer(ip: str, port: int):
         _server.map_name = "Unknown!"
         _server.player_count = 0
         _server.max_players = 0
-        _server.server_name = ip_port
+        _server.server_name = f"{ip}:{port}"
         status = False
     else:
         status = True

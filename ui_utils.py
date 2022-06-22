@@ -63,18 +63,37 @@ class PlayerListV(discord.ui.View):
             await _interaction.response.send_message("Player list send to private message", ephemeral=True)
 
     async def sendstats(self, _interaction: discord.Interaction):
-
+        await _interaction.response.defer(ephemeral=True)
+        _sv = await GetServer(self.ip, self.port)
         em = discord.Embed()
-        em.title = self.ipport
-        # em.add_field(name=_maps, value=f"Last played: <t:{_played}:>\nPlayed: {_playedtimes} times", inline=False)
+        em.title = _sv.name
+        em.color = discord.Color.blurple()
+        map_table = {}
+        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)):
+            if len(map_table) > 24: break
+            if map not in map_table: 
+                map_table[map] = {
+                    "lastplayed":lastplayed,
+                    "playtime":0,
+                    "avg_player":avg_player,
+                    "played":0
+                }
+            map_table[map]["played"] += played
+            map_table[map]["playtime"] += playtime
+
+        for m in map_table:
+            lastplayed: datetime = map_table[m]["lastplayed"]
+            avg_player: int = map_table[m]["avg_player"]
+            played: int = map_table[m]["played"]
+            em.add_field(name=map, value=f"Last Played: <t:{round(lastplayed.timestamp())}:R>\nAverage Players: {avg_player}\nPlayed: {played}", inline=False)
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:
-            await _interaction.response.send_message("i cant send the stats on private message", ephemeral=True)
+            await _interaction.response.edit_message("i cant send the stats on private message")
         except Exception as e:
             _logger.warning(e)
         else:
-            await _interaction.response.send_message("Server stats send to private message", ephemeral=True)
+            await _interaction.response.edit_message(content="Server stats send to private message")
 
 
 class Confirm(discord.ui.View):

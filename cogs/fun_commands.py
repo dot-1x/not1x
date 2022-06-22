@@ -1,12 +1,12 @@
-import discord
-
 from random import randint
 from typing import Counter
-from discord.ext import commands
-from logs import setlog
-from discord.commands import slash_command
-from ui_utils import Confirm
 
+import discord
+from discord.commands import slash_command
+from discord.ext import commands
+
+from logs import setlog
+from ui_utils import Confirm
 
 _logger = setlog(__name__)
 

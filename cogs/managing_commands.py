@@ -1,14 +1,14 @@
 import asyncio
-import discord
 import typing as t
-import not1x
 
-from enums import Data
-from discord.ext import commands, bridge
+import discord
+from discord.ext import bridge, commands
+
+import not1x
 from command_error import CommandInputError
+from enums import Data
 from logs import setlog
 from utils import restart_map_loop
-
 
 _logger = setlog(__name__)
 

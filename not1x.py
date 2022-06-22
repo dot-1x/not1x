@@ -1,21 +1,21 @@
 import asyncio
+import os
 import pathlib
 import traceback
 import typing as t
-import os
-import discord
-import ui_utils
-
-
-from tasks.map_task import ServerTask
 from datetime import datetime
-from db import getserverdata, loadguild, connection
-from enums import *
-from logs import setlog
+from ipaddress import ip_address
+
+import discord
 from discord.ext import bridge, commands, tasks
 from discord.ext.commands.errors import *
+
+import ui_utils
 from command_error import CheckError, StdErrChannel
-from ipaddress import ip_address
+from db import connection, getserverdata, loadguild
+from enums import *
+from logs import setlog
+from tasks.map_task import ServerTask
 
 __version__ = "0.4"
 __all__ = ["Bot"]

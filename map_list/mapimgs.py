@@ -1,7 +1,7 @@
-import aiohttp
 import asyncio
 import re
 
+import aiohttp
 from bs4 import BeautifulSoup as bs
 
 loop = asyncio.get_event_loop()

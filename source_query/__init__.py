@@ -1,13 +1,14 @@
 import asyncio
-import aiohttp
-import a2s
 import ipaddress
-import discord
 import json
 
-from logs import setlog
-from bs4 import BeautifulSoup as bs
+import a2s
+import aiohttp
+import discord
 from a2s.info import SourceInfo
+from bs4 import BeautifulSoup as bs
+
+from logs import setlog
 
 _logger = setlog("SourceQuery")
 

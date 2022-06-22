@@ -1,18 +1,20 @@
-from inspect import trace
 import secrets
 import traceback
 import typing as t
-import discord
-import not1x
-
 from datetime import datetime
-from discord.ext.commands.errors import *
-from discord.ext import commands, bridge
-from discord.errors import *
-from discord import Embed, Colour, TextChannel
-from logs import setlog
-from enums import *
+from inspect import trace
+from pathlib import Path
+
+import discord
 from aiomysql import OperationalError
+from discord import Colour, Embed, TextChannel
+from discord.errors import *
+from discord.ext import bridge, commands
+from discord.ext.commands.errors import *
+
+import not1x
+from enums import *
+from logs import setlog
 
 _logger = setlog(__name__)
 
@@ -100,7 +102,8 @@ async def CheckError(
 
     _logger.warning(error)
 
-    with open("logs/traceback.log", "a") as f:
+    _tb = Path("logs\\traceback.log").exists()
+    with open("logs/traceback.log", "a" if _tb else "x") as f:
         f.write(
             str(datetime.utcnow()) + "\n" + f"ID: {_err_id}\n" + str(error.with_traceback(error.__traceback__)) + "\n"
         )

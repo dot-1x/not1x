@@ -1,23 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import discord
 import typing as t
-
-from db import (
-    iterdb,
-    fetchip,
-    fetchuser,
-    getnotify,
-    updateplayers,
-    updateserver,
-    updatetracking,
-)
-from ipaddress import ip_address
-from logs import setlog
-from enums import *
-from source_query import GetServer
 from datetime import datetime
+from ipaddress import ip_address
+
+import discord
+
+from db import (fetchip, fetchuser, getnotify, iterdb, updateplayers,
+                updateserver, updatetracking)
+from enums import *
+from logs import setlog
+from source_query import GetServer
 
 if t.TYPE_CHECKING:
     import not1x

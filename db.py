@@ -1,13 +1,13 @@
 import asyncio
 import json
-import aiomysql
 import typing as t
-
-from itertools import chain
-from logs import setlog
 from datetime import datetime
 from ipaddress import IPv4Address
+from itertools import chain
 
+import aiomysql
+
+from logs import setlog
 
 _logger = setlog(__name__)
 

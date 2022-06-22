@@ -1,9 +1,10 @@
 import asyncio
-import not1x
-import numpy as np
 
-from logs import setlog
+import numpy as np
 from PIL import Image
+
+import not1x
+from logs import setlog
 
 _logger = setlog(__name__)
 

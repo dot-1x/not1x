@@ -1,10 +1,11 @@
 import asyncio
-import aiohttp
 import re
+from datetime import datetime
+
+import aiohttp
+from bs4 import BeautifulSoup as bs
 
 from logs import setlog
-from datetime import datetime
-from bs4 import BeautifulSoup as bs
 
 _logger = setlog(__name__)
 

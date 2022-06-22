@@ -1,15 +1,17 @@
 from __future__ import annotations
-from datetime import datetime
-import discord
-import typing as t
 
-from logs import setlog
-from discord.ext import pages, commands
-from enums import *
-from itertools import chain
-from db import *
-from source_query import GetServer
+import typing as t
+from datetime import datetime
 from ipaddress import ip_address
+from itertools import chain
+
+import discord
+from discord.ext import commands, pages
+
+from db import *
+from enums import *
+from logs import setlog
+from source_query import GetServer
 
 if t.TYPE_CHECKING:
     import not1x

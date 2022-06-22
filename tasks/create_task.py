@@ -1,9 +1,9 @@
 import asyncio
-import discord
 import typing as t
 
+import discord
+from discord.ext import commands, tasks
 
-from discord.ext import tasks, commands
 from logs import setlog
 
 _logger = setlog(__name__)

@@ -1,26 +1,22 @@
 import json
 import re
-import discord
-import ui_utils
-import not1x
-
 from datetime import datetime
-from multiprocessing import Process
 from ipaddress import ip_address
-from db import (
-    getchannel,
-    getnotify,
-    gettracking,
-    inserttracking,
-    updatechannel,
-)
-from enums import *
+from multiprocessing import Process
+
+import discord
+from discord.commands import SlashCommandGroup, slash_command
 from discord.ext import commands, pages, tasks
+
+import not1x
+import ui_utils
+from db import (getchannel, getnotify, gettracking, inserttracking,
+                updatechannel)
+from enums import *
 from logs import setlog
-from map_list.findmap import updatemap, aupdatemap
+from map_list.findmap import aupdatemap, updatemap
 from source_query import GetServer
 from tasks.map_task import ServerTask
-from discord.commands import SlashCommandGroup, slash_command
 
 _logger = setlog(__name__)
 

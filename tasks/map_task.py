@@ -1,30 +1,29 @@
 from __future__ import annotations
 
 import asyncio
-from http import server
-import json
 import discord
 import typing as t
 
-from discord.ext import tasks, commands
 from db import (
     iterdb,
     fetchip,
     fetchuser,
     getnotify,
+    updateplayers,
     updateserver,
     updatetracking,
 )
 from ipaddress import ip_address
 from logs import setlog
 from enums import *
-from source_query import GetServer, ServerInfo
+from source_query import GetServer
 from datetime import datetime
 
 if t.TYPE_CHECKING:
     import not1x
 
 _logger = setlog(__name__)
+
 
 class ServerTask:
     def __init__(
@@ -51,7 +50,7 @@ class ServerTask:
         self._retries = 0
         self._view = view
 
-        self._data = {}
+        self._players = []
 
         self._maptime = datetime.now()
         bot.loop_maptsk[ipport] = self
@@ -83,7 +82,7 @@ class ServerTask:
 
     async def servercheck(self):
         _st = datetime.now()
-        
+
         ip = ip_address(self.ipport.split(":")[0])
         port = int(self.ipport.split(":")[1])
 
@@ -91,46 +90,29 @@ class ServerTask:
 
         self.isonline = server_info.status
 
-        if not server_info.status:
-            return
+        date_now = _st.strftime("%Y-%m-%d")
 
-        date_now = _st.strftime("%D")
-        
-        if self.ipport in self.bot.server_data:
-            self._data = self.bot.server_data[self.ipport]
-
-        if not date_now in self._data:
-            self._data[date_now] = {
-                "players" : [],
-                "maps" : {}
-            }
-        
-        self._data[date_now]["players"].append(server_info.player)
-        if self.mapname != server_info.maps:
-            self._maptime = _st
-            self.mapname = server_info.maps
-            if self.mapname in self._data[date_now]["maps"]:
-                self._data[date_now]["maps"][self.mapname]["played"] += 1
-                self._data[date_now]["maps"][self.mapname]["lastplayed"] = round(self._maptime.timestamp())
+        if self.mapname != server_info.maps and server_info.status:
+            if self.mapname != "Unknown!":
+                self._maptime = _st - self._maptime
+                await updateserver(
+                    self.ipport,
+                    self.mapname,
+                    date_now,
+                    round(self._maptime.seconds / 60),
+                    round(sum(self._players) / len(self._players)),
+                )
             else:
-                self._data[date_now]["maps"][self.mapname] = {
-                    "played":1,
-                    "lastplayed":round(self._maptime.timestamp())
-                }
+                await updateserver(self.ipport, server_info.maps, date_now)
 
+            self._maptime = _st
             self.playedtime = round(datetime.now().timestamp())
             self._notif = False
+            self.mapname = server_info.maps
+            self._players.clear()
 
-        self.bot.server_data[self.ipport] = self._data
-
-        with open("server_data.json", "w") as j:
-            json.dump(self.bot.server_data, j, indent=4)
-
-        # try:
-        #     await updateserver(self.ipport, self._data)
-        # except Exception as e:
-        #     _logger.error("Failed to update server history")
-        #     _logger.error(e)
+        self._players.append(server_info.player)
+        await updateplayers(self.ipport, self.mapname, date_now, round(sum(self._players) / len(self._players)))
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
 

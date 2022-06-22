@@ -128,7 +128,7 @@ class Bot(bridge.Bot):
     async def on_ready(self):
 
         if self.ready:
-            _logger.info(f"Reconnected as: {self.user}")
+            _logger.info(f"Bot reconnected as: {self.user}")
             return
 
         self.ready = True
@@ -139,16 +139,18 @@ class Bot(bridge.Bot):
             except:
                 _logger.critical("Failed to load guild from database")
                 self.loop.stop()
-        
-        # self.server_data = await asyncio.wait_for(getserverdata(), 10)
-        with open("server_data.json", "r") as j:
-            self.server_data = json.load(j)
+
         self.map_tasks()
 
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")
 
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
+
+    async def on_disconnect():
+        _logger.info("Bot has been disconnected from discord")
+
+        return super().on_disconnect()
 
     async def on_guild_join(self, guild: discord.Guild):
         await loadguild(guild.id)

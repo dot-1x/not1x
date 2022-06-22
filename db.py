@@ -5,6 +5,8 @@ import typing as t
 
 from itertools import chain
 from logs import setlog
+from datetime import datetime
+from ipaddress import IPv4Address
 
 
 _logger = setlog(__name__)
@@ -32,8 +34,12 @@ CREATE TABLE `not1x`.`user_data` (
 SERVER_INFO = """"
 CREATE TABLE `not1x`.`server_info` ( 
     `id` INT NOT NULL AUTO_INCREMENT , 
-    `tracking_ip` VARCHAR(1024) NOT NULL , 
-    `maphistory` LONGTEXT NOT NULL ,
+    `tracking_ip` VARCHAR NOT NULL , 
+    `map` VARCHAR NOT NULL , 
+    `date` DATE NOT NULL , 
+    `lastplayed` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , 
+    `playtime` INT NOT NULL , 
+    `played` INT NOT NULL , 
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
@@ -181,7 +187,7 @@ async def inserttracking(guild_id: int, channel_id: int, tracking_ip: str, messa
     db.connection.close()
 
 
-async def gettracking(guild: int, ip: str = None) -> list:
+async def gettracking(guild: int, ip: str = None) -> t.List[IPv4Address]:
     db = await connection.conn()
     if ip:
         await db.cursor.execute(
@@ -196,28 +202,47 @@ async def gettracking(guild: int, ip: str = None) -> list:
     return [_r for _r in rs if _r != "0"] if r else []
 
 
-async def updateserver(ip: str, data: dict):
+async def updateserver(ip: str, map: str, date: datetime, playtime: int = 0, average_players: int = 0):
     db = await connection.conn()
-    await db.cursor.execute("SELECT `history` FROM `server_info` WHERE `tracking_ip` = %s", (ip))
+    await db.cursor.execute(
+        "SELECT `playtime`, `played` FROM `server_info` WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s",
+        (ip, map, date),
+    )
     r = await db.cursor.fetchone()
     if not r:
-        q = "INSERT INTO `server_info` (`tracking_ip`, `history`) VALUES (%s, %s)"
-        await db.cursor.execute(q, (ip, json.dumps(data)))
+        q = "INSERT INTO `server_info` (`tracking_ip`, `map`, `date`, `playtime`, `played`, `average_players`) VALUES (%s, %s, %s, %s, %s, %s)"
+        await db.cursor.execute(q, (ip, map, date, playtime, 1, average_players))
     else:
-        q = "UPATE `server_info` SET `history` = %s WHERE `tracking_ip` = %s"
-        await db.cursor.execute(q, (json.dumps(data), ip))
+        q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
+        await db.cursor.execute(q, (playtime, r[1] + 1, average_players, ip, map, date))
     await db.connection.commit()
+
+
+async def updateplayers(ip: str, map: str, date: datetime, player: int):
+    db = await connection.conn()
+    q = "UPDATE `server_info` SET `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
+    await db.cursor.execute(q, (player, ip, map, date))
+    await db.connection.commit()
+
 
 async def getserverdata():
     db = await connection.conn()
     await db.cursor.execute("SELECT * FROM `server_info`")
     r = await db.cursor.fetchall()
-    data = {}
-    for _, ip, _data in r:
-        data[ip] = json.loads(_data)
-    print(data)
-    return data
-    
+    return r
+
+
+async def fetchserverdata(ip: str) -> t.List[t.Tuple]:
+    """
+    fetch server data from db
+        return tuple(id, ip, map, date, lastplayed, playtime, played, average_players)
+    """
+    db = await connection.conn()
+    await db.cursor.execute("SELECT * FROM `server_info` WHERE `tracking_ip` = %s", (ip))
+    r = await db.cursor.fetchall()
+    return r
+
+
 class iterdb:
     def __init__(self, data=t.Union[list, tuple]) -> None:
         self.count = 0
@@ -236,4 +261,8 @@ class iterdb:
 
 if __name__ == "__main__":  # for debug/testing
     # print(json.dumps({"players":[1,2,3,4], "map":["ze_ze", "zeeeze", "zezezee"]}))
-    asyncio.run(getserverdata())
+    async def test():
+        x = await fetchserverdata("1")
+        print(x)
+
+    asyncio.run(test())

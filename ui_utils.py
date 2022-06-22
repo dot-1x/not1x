@@ -63,20 +63,10 @@ class PlayerListV(discord.ui.View):
             await _interaction.response.send_message("Player list send to private message", ephemeral=True)
 
     async def sendstats(self, _interaction: discord.Interaction):
-        _data = self.bot.server_data[self.ipport][datetime.now().strftime("%D")]
-        _sv = await GetServer(self.ip, self.port)
-        em = discord.Embed(color=discord.Color.blurple())
-        em.title = _sv.name
-        em.description = f"**Average Player: {sum(_data['players'])/len(_data['players'])}**"
-        lim = 0
-        for m in _data["maps"]:
-            if lim > 7:
-                break
-            _maps = m
-            _played = _data["maps"][m]["lastplayed"]
-            _playedyimes = _data["maps"][m]["played"]
-            em.add_field(name=_maps, value=f"Last played: <t:{_played}:R>\nPlayed: {_playedyimes} times played", inline=False)
-            lim += 1
+
+        em = discord.Embed()
+        em.title = self.ipport
+        # em.add_field(name=_maps, value=f"Last played: <t:{_played}:>\nPlayed: {_playedtimes} times", inline=False)
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:
@@ -111,13 +101,24 @@ class Confirm(discord.ui.View):
 
 
 class ChooseView(discord.ui.View):
-    def __init__(self, author: discord.Member, options: t.List[discord.SelectOption], ui_placeholder: str, max_val: int = 25, min_val: int = 1, msg: discord.Message = None, embed: discord.Embed = None):
+    def __init__(
+        self,
+        author: discord.Member,
+        options: t.List[discord.SelectOption],
+        ui_placeholder: str,
+        max_val: int = 25,
+        min_val: int = 1,
+        msg: discord.Message = None,
+        embed: discord.Embed = None,
+    ):
         self.author = author
         self.selectedval = []
         self.msg = msg
         self.embed = embed
         super().__init__(timeout=180)
-        select_opt = discord.ui.Select(placeholder=ui_placeholder, max_values=max_val, min_values=min_val, options=options)
+        select_opt = discord.ui.Select(
+            placeholder=ui_placeholder, max_values=max_val, min_values=min_val, options=options
+        )
         select_opt.callback = self.interact
         self.add_item(select_opt)
 
@@ -131,13 +132,16 @@ class ChooseView(discord.ui.View):
 
 
 class GeneratePage(pages.Paginator):
-    def __init__(self, options: t.List[discord.SelectOption], pages: t.List[str] | t.List[pages.Page] | t.List[t.List[discord.Embed] | discord.Embed] ) -> None:
+    def __init__(
+        self,
+        options: t.List[discord.SelectOption],
+        pages: t.List[str] | t.List[pages.Page] | t.List[t.List[discord.Embed] | discord.Embed],
+    ) -> None:
         super().__init__()
         pages.PageGroup(
             pages=pages,
-            
         )
-        
+
 
 async def view_select_map(
     ctx: discord.ApplicationContext,

@@ -260,7 +260,10 @@ class MapCommands(commands.Cog):
                     title="Map Notification",
                     description="\n".join(user_notify[x : x + 25]),
                     color=ctx.author.colour,
-                ).set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url if ctx.author.display_avatar else discord.Embed.Empty)
+                ).set_author(
+                    name=ctx.author.name,
+                    icon_url=ctx.author.display_avatar.url if ctx.author.display_avatar else discord.Embed.Empty,
+                )
             ]
             for x in range(0, len(user_notify), 25)
         ]

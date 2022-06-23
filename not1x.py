@@ -34,7 +34,7 @@ class CustomHelp(commands.HelpCommand):
 
 class Bot(bridge.Bot):
     def __init__(self, config: dict, *, token: str):
-        self.prefix = "]"
+        self.prefix = "."
         self.ready = False
         self.help = CustomHelp()
         self.config = config
@@ -139,7 +139,7 @@ class Bot(bridge.Bot):
                 _logger.critical("Failed to load guild from database")
                 self.loop.stop()
 
-        self.map_tasks()
+        # self.map_tasks()
 
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")

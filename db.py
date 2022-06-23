@@ -1,11 +1,15 @@
 import asyncio
+import io
 import json
+import os
+from pathlib import Path
 import typing as t
 from datetime import datetime
 from ipaddress import IPv4Address
 from itertools import chain
 
 import aiomysql
+import pandas
 
 from logs import setlog
 
@@ -262,7 +266,37 @@ class iterdb:
 if __name__ == "__main__":  # for debug/testing
     # print(json.dumps({"players":[1,2,3,4], "map":["ze_ze", "zeeeze", "zezezee"]}))
     async def test():
-        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await getserverdata(), key=lambda x: x[4], reverse=True)):
-            print(lastplayed)
+        map_data = {}
+        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await getserverdata(), key=lambda x:x[2], reverse=True)):
+            date: datetime = date
+            if not ip in map_data:
+                map_data[ip] = {
+                    "date":[],
+                    "map":[],
+                    "played":[],
+                    "playtime":[],
+                    "lastplayed":[],
+                    "average_player":[]
+                }
+            # if not str(date) in map_data[ip]:
+            #     map_data[ip][str(date)] = []
+            # if not map in map_data[ip][str(date)]:
+            map_data[ip]["date"].append(str(date))
+            map_data[ip]["map"].append(map)
+            map_data[ip]["played"].append(str(played))
+            map_data[ip]["playtime"].append(str(playtime)+" minutes")
+            map_data[ip]["lastplayed"].append(lastplayed)
+            map_data[ip]["average_player"].append(avg_player)
+            # print((map, map in map_data[ip][str(date)]))
+        # print(map_data["43.248.188.169:27021"])
+        for y in map_data:
+            f = y.replace(":", "_")
+            x = pandas.DataFrame(map_data[y])
+            p = Path(f"_debugs/{f}.txt")
+            if not p.exists():
+                with open(f"_debugs/{f}.txt", "x") as c:
+                    pass
+            with open(f"_debugs/{f}.txt", "w") as w:
+                x.to_string(w)
 
     asyncio.run(test())

@@ -8,5 +8,5 @@ with open("_debugs/config.json", "r") as cfg:
     CONFIG["path"] = cfg.name
 
 if __name__ == "__main__":
-    bot = Bot(CONFIG, token=CONFIG["token"])
+    bot = Bot(CONFIG, token=CONFIG["devtoken"])
     bot.run()

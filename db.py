@@ -215,7 +215,7 @@ async def updateserver(ip: str, map: str, date: datetime, playtime: int = 0, ave
     r = await db.cursor.fetchone()
     if not r:
         q = "INSERT INTO `server_info` (`tracking_ip`, `map`, `date`, `playtime`, `played`, `average_players`) VALUES (%s, %s, %s, %s, %s, %s)"
-        await db.cursor.execute(q, (ip, map, date, playtime, 1, average_players))
+        await db.cursor.execute(q, (ip, map, date, playtime, 0, average_players))
     else:
         q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
         await db.cursor.execute(q, (playtime, r[1] + 1, average_players, ip, map, date))
@@ -261,43 +261,3 @@ class iterdb:
         iter = self.data[self.count]
         self.count += 1
         return iter
-
-
-if __name__ == "__main__":  # for debug/testing
-    # print(json.dumps({"players":[1,2,3,4], "map":["ze_ze", "zeeeze", "zezezee"]}))
-    async def test():
-        map_data = {}
-        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(await getserverdata()):
-            date: datetime = date
-            if not ip in map_data:
-                map_data[ip] = {
-                    "date": [],
-                    "map": [],
-                    "played": [],
-                    "playtime": [],
-                    "lastplayed": [],
-                    "average_player": [],
-                }
-            # if not str(date) in map_data[ip]:
-            #     map_data[ip][str(date)] = []
-            # if not map in map_data[ip][str(date)]:
-            map_data[ip]["date"].append(str(date))
-            map_data[ip]["map"].append(map)
-            map_data[ip]["played"].append(str(played))
-            map_data[ip]["playtime"].append(str(playtime) + " minutes")
-            map_data[ip]["lastplayed"].append(lastplayed)
-            map_data[ip]["average_player"].append(avg_player)
-            # print((map, map in map_data[ip][str(date)]))
-        # print(map_data["43.248.188.169:27021"])
-        for y in map_data:
-            f = y.replace(":", "_")
-            x = pandas.DataFrame(map_data[y])
-            p = Path(f"_debugs/{f}.txt")
-            if not p.exists():
-                with open(f"_debugs/{f}.txt", "x") as c:
-                    pass
-            with open(f"_debugs/{f}.txt", "w") as w:
-                x = x.sort_values(by="date")
-                x.to_string(w)
-
-    asyncio.run(test())

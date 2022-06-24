@@ -82,12 +82,13 @@ class PlayerListV(discord.ui.View):
                 break
             em.add_field(
                 name=map,
-                value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played} time(s)\nPlaytime: {playtime} minute(s)",
+                value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played if played else 1} time(s)\nPlaytime: {playtime} minute(s)",
                 inline=True,
             )
             total_average.append(avg_player)
             lim += 1
         em.description = "Total average player(s): " + str(sum(total_average) / len(total_average))
+        em.set_footer(text="Note: map playtime stats is generated after map finished playing!")
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:

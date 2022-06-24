@@ -297,7 +297,7 @@ if __name__ == "__main__":  # for debug/testing
                 with open(f"_debugs/{f}.txt", "x") as c:
                     pass
             with open(f"_debugs/{f}.txt", "w") as w:
-                x = x.sort_values(by="playtime")
+                x = x.sort_values(by="date")
                 x.to_string(w)
 
     asyncio.run(test())

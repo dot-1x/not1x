@@ -267,7 +267,7 @@ if __name__ == "__main__":  # for debug/testing
     # print(json.dumps({"players":[1,2,3,4], "map":["ze_ze", "zeeeze", "zezezee"]}))
     async def test():
         map_data = {}
-        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await getserverdata(), key=lambda x:x[2], reverse=True)):
+        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(await getserverdata()):
             date: datetime = date
             if not ip in map_data:
                 map_data[ip] = {
@@ -297,6 +297,7 @@ if __name__ == "__main__":  # for debug/testing
                 with open(f"_debugs/{f}.txt", "x") as c:
                     pass
             with open(f"_debugs/{f}.txt", "w") as w:
+                x = x.sort_values(by="playtime")
                 x.to_string(w)
 
     asyncio.run(test())

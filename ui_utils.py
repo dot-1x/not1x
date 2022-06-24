@@ -67,14 +67,20 @@ class PlayerListV(discord.ui.View):
     async def sendstats(self, _interaction: discord.Interaction):
         await _interaction.response.send_message("Sending stats...", ephemeral=True)
         _sv = await GetServer(self.ip, self.port)
+        if not _sv.status:
+            await _interaction.response.send_message("Server is offline!", ephemeral=True)
+            return
         em = discord.Embed()
         em.title = _sv.name
         em.color = discord.Color.blurple()
         lim = 0
+        total_average = []
         async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)):
             if lim > 24: break
-            em.add_field(name=map, value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played}", inline=False)
+            em.add_field(name=map, value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played} time(s)\nPlaytime: {playtime}", inline=True)
+            total_average.append(avg_player)
             lim += 1
+        em.description = "Total average player(s): "+str(sum(total_average)/len(total_average))
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:

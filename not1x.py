@@ -91,14 +91,9 @@ class Bot(bridge.Bot):
 
         @tasks.loop(seconds=60)
         async def globalqueryloop():
-            _s = datetime.now()
-            # _logger.debug(f"Started loop at: {_s.__str__()}")
             for l in self.loop_maptsk.values():
                 l: ServerTask
                 await asyncio.wait_for(l.servercheck(), 60)
-            _e = datetime.now()
-            # _logger.debug(f"Loop ended at: {_e.__str__()}")
-            # _logger.debug(f"Loop done in: {_e - _s}")
 
         @globalqueryloop.error
         async def on_loop_err(error: discord.DiscordException):
@@ -139,7 +134,7 @@ class Bot(bridge.Bot):
                 _logger.critical("Failed to load guild from database")
                 self.loop.stop()
 
-        # self.map_tasks()
+        self.map_tasks()
 
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")

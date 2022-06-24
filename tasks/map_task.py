@@ -92,14 +92,14 @@ class ServerTask:
         if self.mapname != server_info.maps and server_info.status:
             if self.mapname != "Unknown!":
                 self._maptime = _st - self._maptime
-                await updateserver(                                         # update old map to db
+                await updateserver(  # update old map to db
                     self.ipport,
                     self.mapname,
                     date_now,
                     round(self._maptime.seconds / 60),
                     round(sum(self._players) / len(self._players)),
                 )
-                await updateserver(self.ipport, server_info.maps, date_now) # update new maps to db
+                await updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
             else:
                 await updateserver(self.ipport, server_info.maps, date_now)
 
@@ -116,7 +116,7 @@ class ServerTask:
 
         if self._retries >= 10 and server_info.status:
             _logger.info(f"Connection established for {self.ipport}")
-            
+
         if not server_info.status:
             self._retries += 1
         else:

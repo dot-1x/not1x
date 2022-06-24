@@ -2,11 +2,11 @@ import asyncio
 import io
 import json
 import os
-from pathlib import Path
 import typing as t
 from datetime import datetime
 from ipaddress import IPv4Address
 from itertools import chain
+from pathlib import Path
 
 import aiomysql
 import pandas
@@ -271,12 +271,12 @@ if __name__ == "__main__":  # for debug/testing
             date: datetime = date
             if not ip in map_data:
                 map_data[ip] = {
-                    "date":[],
-                    "map":[],
-                    "played":[],
-                    "playtime":[],
-                    "lastplayed":[],
-                    "average_player":[]
+                    "date": [],
+                    "map": [],
+                    "played": [],
+                    "playtime": [],
+                    "lastplayed": [],
+                    "average_player": [],
                 }
             # if not str(date) in map_data[ip]:
             #     map_data[ip][str(date)] = []
@@ -284,7 +284,7 @@ if __name__ == "__main__":  # for debug/testing
             map_data[ip]["date"].append(str(date))
             map_data[ip]["map"].append(map)
             map_data[ip]["played"].append(str(played))
-            map_data[ip]["playtime"].append(str(playtime)+" minutes")
+            map_data[ip]["playtime"].append(str(playtime) + " minutes")
             map_data[ip]["lastplayed"].append(lastplayed)
             map_data[ip]["average_player"].append(avg_player)
             # print((map, map in map_data[ip][str(date)]))

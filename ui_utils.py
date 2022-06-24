@@ -75,12 +75,19 @@ class PlayerListV(discord.ui.View):
         em.color = discord.Color.blurple()
         lim = 0
         total_average = []
-        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(sorted(await fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)):
-            if lim > 24: break
-            em.add_field(name=map, value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played} time(s)\nPlaytime: {playtime} minute(s)", inline=True)
+        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(
+            sorted(await fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)
+        ):
+            if lim > 24:
+                break
+            em.add_field(
+                name=map,
+                value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played} time(s)\nPlaytime: {playtime} minute(s)",
+                inline=True,
+            )
             total_average.append(avg_player)
             lim += 1
-        em.description = "Total average player(s): "+str(sum(total_average)/len(total_average))
+        em.description = "Total average player(s): " + str(sum(total_average) / len(total_average))
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:

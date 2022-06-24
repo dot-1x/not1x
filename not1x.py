@@ -144,8 +144,6 @@ class Bot(bridge.Bot):
     async def on_disconnect(*args, **kwargs):
         _logger.info("Bot has been disconnected from discord")
 
-        return super().on_disconnect(*args, **kwargs)
-
     async def on_guild_join(self, guild: discord.Guild):
         await loadguild(guild.id)
         return super().on_guild_join(guild)

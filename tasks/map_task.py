@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import traceback
 import typing as t
 from datetime import datetime
 from ipaddress import ip_address
@@ -72,6 +74,7 @@ class ServerTask:
             except Exception as e:
                 _logger.error(f"Cannot update message on {channel.id} with error: {e}")
         except Exception as e:
+            traceback.print_exc(file=io.FileIO("logs/traceback.logs"))
             _logger.error(e)
 
     async def servercheck(self):
@@ -110,13 +113,13 @@ class ServerTask:
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
 
+        if self._retries >= 10 and server_info.status:
+            _logger.info(f"Connection established for {self.ipport}")
+            
         if not server_info.status:
             self._retries += 1
         else:
             self._retries = 0
-
-        if self._retries >= 10 and server_info.status:
-            _logger.info(f"Connection established for {self.ipport}")
 
         if not self._notif and self.ipport != "103.62.48.10:27058" and self.isonline:
             self._notif = True

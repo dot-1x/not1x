@@ -160,6 +160,12 @@ class Bot(bridge.Bot):
             return
         return await super().on_message(message)
 
+    async def on_error(self, event_method: str, *args: t.Any, **kwargs: t.Any) -> None:
+        _logger.debug(event_method)
+        _logger.debug(args)
+        _logger.debug(kwargs)
+        return await super().on_error(event_method, *args, **kwargs)
+
     async def on_application_command_error(self, ctx: discord.ApplicationContext, err: discord.DiscordException):
         await CheckError(ctx, err)
 

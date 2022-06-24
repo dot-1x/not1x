@@ -110,7 +110,7 @@ async def GetServer(ip: str, port: int):
     ip_port = (str(ip), port)
     try:
         _server: SourceInfo = await a2s.ainfo((str(ip), port), timeout=1)
-    except Exception as e:
+    except:
         _server = SourceInfo()
         _server.map_name = "Unknown!"
         _server.player_count = 0

@@ -118,7 +118,7 @@ class ServerTask:
         if self._retries >= 10 and server_info.status:
             _logger.info(f"Connection established for {self.ipport}")
 
-        if not self._notif and self.ipport != "103.62.48.10:27058":
+        if not self._notif and self.ipport != "103.62.48.10:27058" and self.isonline:
             self._notif = True
             async for _, userid, _, _ in iterdb(await fetchuser()):
                 _user = self.bot.get_user(userid)

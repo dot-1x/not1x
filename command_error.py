@@ -103,7 +103,7 @@ async def CheckError(
     _logger.warning(error)
 
     _tb = Path("logs\\traceback.log").exists()
-    with open("logs/traceback.log", "a" if _tb else "x") as f:
+    with open("logs/traceback.log", "a") as f:
         f.write(
             str(datetime.utcnow()) + "\n" + f"ID: {_err_id}\n" + str(error.with_traceback(error.__traceback__)) + "\n"
         )

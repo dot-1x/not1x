@@ -93,14 +93,13 @@ class Bot(bridge.Bot):
         async def globalqueryloop():
             for l in self.loop_maptsk.values():
                 l: ServerTask
-                await asyncio.wait_for(l.servercheck(), 60)
-
-        @globalqueryloop.error
-        async def on_loop_err(error: discord.DiscordException):
-            _logger.error(f"global loop encountered an error: {error}")
-            with open("logs/traceback.log", "a") as f:
-                f.write(str(datetime.utcnow()) + "\n" + str(error.with_traceback(error.__traceback__)) + "\n")
-                traceback.print_tb(error.__traceback__, file=f)
+                try:
+                    await asyncio.wait_for(l.servercheck(), 60)
+                except Exception as e:
+                    _logger.error(f"global loop encountered an error: {e}")         
+                    with open("logs/traceback.log", "a") as f:
+                        traceback.print_exc(file=f)
+                    continue
 
         globalqueryloop.start()
         globalqueryloop.get_task().set_name("globalqueryloop")

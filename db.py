@@ -218,7 +218,7 @@ async def updateserver(ip: str, map: str, date: datetime, playtime: int = 0, ave
         await db.cursor.execute(q, (ip, map, date, playtime, 0, average_players))
     else:
         q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
-        await db.cursor.execute(q, (playtime, r[1] + 1, average_players, ip, map, date))
+        await db.cursor.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date))
     await db.connection.commit()
 
 

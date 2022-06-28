@@ -21,8 +21,8 @@ async def get_location(ip: str) -> dict | None:
             if req.status != 200:
                 return _res
 
-            c = await req.text()
             try:
+                c = await req.text()
                 _content = bs(c, "html.parser")
                 _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
                 _image = _country.find("img")

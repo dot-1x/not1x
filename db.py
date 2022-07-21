@@ -48,203 +48,182 @@ CREATE TABLE `not1x`.`server_info` (
 ) ENGINE = InnoDB;
 """
 
+loop = asyncio.get_event_loop()
+
 
 class connection:
-    def __init__(self, connection: aiomysql.Connection, cursor: aiomysql.Cursor) -> None:
-        self.connection = connection
-        self.cursor = cursor
-
-    @classmethod
-    async def conn(cls):
-        with open("_debugs/config.json", "r") as cfg:
-            data = json.load(cfg)
+    def __init__(self) -> None:
+        with open("_debugs/config.json", "r") as f:
+            data = json.load(f)
             data = data["database"]
-        try:
-            _conn: aiomysql.Connection = await aiomysql.connect(
-                host=data["host"],
-                port=data["port"],
-                user=data["user"],
-                password=data["password"],
-                db=data["db"],
+            self.con: aiomysql.Connection = loop.run_until_complete(
+                aiomysql.connect(
+                    host=data["host"],
+                    port=data["port"],
+                    user=data["user"],
+                    password=data["password"],
+                    db=data["db"],
+                )
             )
-        except Exception as e:
-            _logger.critical("Failed to connect to database")
-            raise e
+
+    async def execute(
+        self, query: str, *args, fetch: bool = False, fetchall: bool = False, res: bool = True, commit: bool = False
+    ) -> t.Tuple | None:
+        self.cursor: aiomysql.Cursor = await self.con.cursor()
+        await self.cursor.execute(query, *args)
+        _res = None
+        if fetch:
+            if fetchall:
+                _res = await self.cursor.fetchall()
+            else:
+                _res = await self.cursor.fetchone()
+        if commit:
+            await self.con.commit()
+        if res:
+            return _res
+
+    async def getnotify(self, userid: int) -> list:
+        r = await self.execute(
+            "SELECT notified_maps FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
+        )
+        return [m for m in r[0].split(",")] if r and len(r[0]) > 1 else []
+
+    async def insertnotify(self, userid: int, name: str, maps: t.List[str], *, delete: bool = False):
+        sep_maps = ",".join(maps)
+        r = await self.execute(
+            "SELECT userid FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
+        )
+        if r:
+            existed_notification = await self.getnotify(userid)
+            if not delete:
+                _maps = [a for a in maps if a not in existed_notification]
+                _maps.extend(existed_notification)
+            else:
+                _maps = [a for a in existed_notification if a not in maps]
+            sep_maps = ",".join(sorted(_maps))
+            await self.execute(
+                "UPDATE `user_data` SET `notified_maps`= %s WHERE userid = %s",
+                (
+                    str(sep_maps),
+                    str(userid),
+                ),
+                commit=True,
+                res=False,
+                fetch=False,
+            )
+            _logger.info(f"Successfully updated notify for {name}")
         else:
-            _cursor: aiomysql.Cursor = await _conn.cursor()
-            return cls(_conn, _cursor)
+            await self.execute(
+                "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
+                (str(userid), str(name), str(sep_maps)),
+                commit=True,
+                res=False,
+                fetch=False,
+            )
+            _logger.info(f"Successfully added new user {name} to db")
 
+    async def fetchuser(self) -> tuple:
+        r = await self.execute("SELECT * FROM `user_data`", fetch=True, fetchall=True, res=True)
+        return r
 
-async def getnotify(userid: int) -> list:
-    db = await connection.conn()
-    await db.cursor.execute("SELECT notified_maps FROM user_data WHERE userid = %s", (userid))
-    r = await db.cursor.fetchone()
-    db.connection.close()
-    return [m for m in r[0].split(",")] if r and len(r[0]) > 1 else []
+    async def fetchguild(self) -> tuple:
+        r = await self.execute("SELECT * FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
+        return r
 
+    async def fetchip(self, ip: str):
+        r = await self.execute(
+            "SELECT * FROM `guild_tracking` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True, res=True
+        )
+        return r
 
-async def insertnotify(userid: int, name: str, maps: t.List[str], *, delete: bool = False):
-    sep_maps = ",".join(maps)
-    db = await connection.conn()
-    await db.cursor.execute("SELECT userid FROM user_data WHERE userid = %s", (userid))
-    r = await db.cursor.fetchone()
-    if r:
-        existed_notification = await getnotify(userid)
-        if not delete:
-            _maps = [a for a in maps if a not in existed_notification]
-            _maps.extend(existed_notification)
+    async def loadguild(self, id: int):
+        result = await self.execute("SELECT `guild_id` FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
+        if id in [r[0] for r in list(result)]:
+            pass
         else:
-            _maps = [a for a in existed_notification if a not in maps]
-        sep_maps = ",".join(sorted(_maps))
-        await db.cursor.execute(
-            "UPDATE `user_data` SET `notified_maps`= %s WHERE userid = %s",
-            (
-                str(sep_maps),
-                str(userid),
-            ),
+            await self.execute(
+                "INSERT INTO `guild_tracking`(`guild_id`) VALUES (%s)", (str(id)), commit=True, res=False, fetch=False
+            )
+            _logger.info(f"Successfully added new guild {id} to db")
+
+    async def getchannel(self, guild: int) -> int:
+        r = await self.execute(
+            "SELECT `channel_id` FROM `guild_tracking` WHERE guild_id = %s",
+            (guild),
+            fetch=True,
+            fetchall=False,
+            res=True,
         )
-        _logger.info(f"Successfully updated notify for {name}")
-    else:
-        await db.cursor.execute(
-            "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
-            (str(userid), str(name), str(sep_maps)),
+        return r[0] if r else 0
+
+    async def updatechannel(self, guild: int, channel: int):
+        await self.execute(
+            "UPDATE `guild_tracking` SET `channel_id`= %s WHERE guild_id = %s",
+            (channel, guild),
+            commit=True,
+            fetch=False,
         )
-        _logger.info(f"Successfully added new user {name} to db")
-    await db.connection.commit()
-    db.connection.close()
 
-
-async def fetchuser() -> tuple:
-    db = await connection.conn()
-    await db.cursor.execute("SELECT * FROM `user_data`")
-    r = await db.cursor.fetchall()
-    db.connection.close()
-    return r
-
-
-async def fetchguild() -> tuple:
-    db = await connection.conn()
-    await db.cursor.execute("SELECT * FROM `guild_tracking`")
-    r = await db.cursor.fetchall()
-    db.connection.close()
-    return r
-
-
-async def fetchip(ip: str):
-    db = await connection.conn()
-    await db.cursor.execute("SELECT * FROM `guild_tracking` WHERE `tracking_ip` = %s", (ip))
-    r = await db.cursor.fetchall()
-    db.connection.close()
-    return r
-
-
-async def loadguild(id: int):
-    db = await connection.conn()
-    await db.cursor.execute("SELECT `guild_id` FROM `guild_tracking`")
-    result = await db.cursor.fetchall()
-    if id in [r[0] for r in list(result)]:
-        pass
-    else:
-        await db.cursor.execute(
-            "INSERT INTO `guild_tracking`(`guild_id`) VALUES (%s)",
-            (str(id)),
+    async def updatetracking(self, guild: int, ip: str, msg_id: int):
+        db = await connection.conn()
+        await self.execute(
+            "UPDATE `guild_tracking` SET `message_id`= %s WHERE `guild_id` = %s AND `tracking_ip` = %s",
+            (msg_id, guild, ip),
+            commit=True,
+            fetch=False,
         )
-        _logger.info(f"Successfully added new guild {id} to db")
-        await db.connection.commit()
-    db.connection.close()
 
-
-async def getchannel(guild: int) -> int:
-    db = await connection.conn()
-    await db.cursor.execute("SELECT `channel_id` FROM `guild_tracking` WHERE guild_id = %s", (guild))
-    r = await db.cursor.fetchone()
-    return r[0] if r else 0
-
-
-async def updatechannel(guild: int, channel: int):
-    db = await connection.conn()
-    await db.cursor.execute(
-        "UPDATE `guild_tracking` SET `channel_id`= %s WHERE guild_id = %s",
-        (channel, guild),
-    )
-    await db.connection.commit()
-    db.connection.close()
-
-
-async def updatetracking(guild: int, ip: str, msg_id: int):
-    db = await connection.conn()
-    await db.cursor.execute(
-        "UPDATE `guild_tracking` SET `message_id`= %s WHERE `guild_id` = %s AND `tracking_ip` = %s",
-        (msg_id, guild, ip),
-    )
-    await db.connection.commit()
-    db.connection.close()
-
-
-async def inserttracking(guild_id: int, channel_id: int, tracking_ip: str, message_id: int):
-    db = await connection.conn()
-    await db.cursor.execute(
-        "INSERT INTO `guild_tracking`(`guild_id`, `channel_id`, `tracking_ip`, `message_id`) VALUES (%s, %s, %s, %s)",
-        (guild_id, channel_id, tracking_ip, message_id),
-    )
-    await db.connection.commit()
-    db.connection.close()
-
-
-async def gettracking(guild: int, ip: str = None) -> t.List[IPv4Address]:
-    db = await connection.conn()
-    if ip:
-        await db.cursor.execute(
-            "SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s",
-            (guild, ip),
+    async def inserttracking(self, guild_id: int, channel_id: int, tracking_ip: str, message_id: int):
+        await self.execute(
+            "INSERT INTO `guild_tracking`(`guild_id`, `channel_id`, `tracking_ip`, `message_id`) VALUES (%s, %s, %s, %s)",
+            (guild_id, channel_id, tracking_ip, message_id),
+            commit=True,
         )
-    else:
-        await db.cursor.execute("SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s", (guild))
 
-    r = await db.cursor.fetchall()
-    rs = list(chain.from_iterable(r))
-    return [_r for _r in rs if _r != "0"] if r else []
+    async def gettracking(self, guild: int, ip: str = None) -> t.List[IPv4Address]:
+        if ip:
+            r = await self.execute(
+                "SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s",
+                (guild, ip),
+                fetch=True,
+                fetchall=True,
+            )
+        else:
+            r = await self.execute(
+                "SELECT `tracking_ip` FROM `guild_tracking` WHERE `guild_id` = %s", (guild), fetch=True, fetchall=True
+            )
+        rs = list(chain.from_iterable(r))
+        return [_r for _r in rs if _r != "0"] if r else []
 
+    async def updateserver(self, ip: str, map: str, date: datetime, playtime: int = 0, average_players: int = 0):
+        r = await self.execute(
+            "SELECT `playtime`, `played` FROM `server_info` WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s",
+            (ip, map, date),
+            fetch=True,
+            fetchall=False,
+        )
+        if not r:
+            q = "INSERT INTO `server_info` (`tracking_ip`, `map`, `date`, `playtime`, `played`, `average_players`) VALUES (%s, %s, %s, %s, %s, %s)"
+            await self.execute(q, (ip, map, date, playtime, 0, average_players), commit=True)
+        else:
+            q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
+            await self.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date), commit=True)
 
-async def updateserver(ip: str, map: str, date: datetime, playtime: int = 0, average_players: int = 0):
-    db = await connection.conn()
-    await db.cursor.execute(
-        "SELECT `playtime`, `played` FROM `server_info` WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s",
-        (ip, map, date),
-    )
-    r = await db.cursor.fetchone()
-    if not r:
-        q = "INSERT INTO `server_info` (`tracking_ip`, `map`, `date`, `playtime`, `played`, `average_players`) VALUES (%s, %s, %s, %s, %s, %s)"
-        await db.cursor.execute(q, (ip, map, date, playtime, 0, average_players))
-    else:
-        q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
-        await db.cursor.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date))
-    await db.connection.commit()
+    async def updateplayers(self, ip: str, map: str, date: datetime, player: int):
+        q = "UPDATE `server_info` SET `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
+        await self.execute(q, (player, ip, map, date), commit=True)
 
+    async def getserverdata(self):
+        r = await self.execute("SELECT * FROM `server_info`", fetch=True, fetchall=True)
+        return r
 
-async def updateplayers(ip: str, map: str, date: datetime, player: int):
-    db = await connection.conn()
-    q = "UPDATE `server_info` SET `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
-    await db.cursor.execute(q, (player, ip, map, date))
-    await db.connection.commit()
-
-
-async def getserverdata():
-    db = await connection.conn()
-    await db.cursor.execute("SELECT * FROM `server_info`")
-    r = await db.cursor.fetchall()
-    return r
-
-
-async def fetchserverdata(ip: str) -> t.List[t.Tuple]:
-    """
-    fetch server data from db
-        return tuple(id, ip, map, date, lastplayed, playtime, played, average_players)
-    """
-    db = await connection.conn()
-    await db.cursor.execute("SELECT * FROM `server_info` WHERE `tracking_ip` = %s", (ip))
-    r = await db.cursor.fetchall()
-    return r
+    async def fetchserverdata(self, ip: str) -> t.List[t.Tuple]:
+        """
+        fetch server data from db
+            return tuple(id, ip, map, date, lastplayed, playtime, played, average_players)
+        """
+        r = await self.execute("SELECT * FROM `server_info` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True)
+        return r
 
 
 class iterdb:

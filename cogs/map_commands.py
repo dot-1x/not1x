@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime
 from ipaddress import ip_address
+from itertools import chain
 from multiprocessing import Process
 
 import discord
@@ -10,8 +11,6 @@ from discord.ext import commands, pages, tasks
 
 import not1x
 import ui_utils
-from db import (getchannel, getnotify, gettracking, inserttracking,
-                updatechannel)
 from enums import *
 from logs import setlog
 from map_list.findmap import aupdatemap, updatemap
@@ -79,7 +78,7 @@ class MapCommands(commands.Cog):
     @server.command(description="Get this guild map tracking list")
     async def list(self, ctx: discord.ApplicationContext):
 
-        notify_list = await gettracking(ctx.guild.id)
+        notify_list = await self.bot.db.gettracking(ctx.guild.id)
         if not len(notify_list):
             await ctx.respond("This guild currently has no server query")
             return
@@ -100,8 +99,12 @@ class MapCommands(commands.Cog):
     )
     @commands.has_permissions(manage_guild=True)
     async def channel(self, ctx: discord.ApplicationContext, channel: discord.TextChannel):
-        await ctx.respond(f"Successfully updated channel to <#{channel.id}>")
-        await updatechannel(ctx.guild.id, channel.id)
+        try:
+            await self.bot.db.updatechannel(ctx.guild.id, channel.id)
+        except Exception as e:
+            raise e
+        else:
+            await ctx.respond(f"Successfully updated channel to <#{channel.id}>")
 
     @server.command(description="add a server to map tracking")
     @discord.option(name="ip", type=str, description="Server ip address")
@@ -126,11 +129,11 @@ class MapCommands(commands.Cog):
         ip = ip_address(ip)
         port = int(port)
         ipport = f"{str(ip)}:{port}"
-        _tracking = await gettracking(ctx.guild.id)
-        _channel = self.bot.get_channel(await getchannel(ctx.guild.id))
+        _tracking = await self.bot.db.gettracking(ctx.guild.id)
+        _channel = self.bot.get_channel(await self.bot.db.getchannel(ctx.guild.id))
 
         if channel:
-            await updatechannel(ctx.guild.id, channel.id)
+            await self.bot.db.updatechannel(ctx.guild.id, channel.id)
             await ctx.send(f"Successfully updated channel to <#{channel.id}>")
             _channel = self.bot.get_channel(channel.id)
 
@@ -167,19 +170,18 @@ class MapCommands(commands.Cog):
             _logger.info(f"Added new server '{ipport}' to map task")
 
         await ctx.respond(f"Successfully added **{serverstatus.name}** to map tracking")
-        await inserttracking(ctx.guild.id, _channel.id, ipport, 0)
+        await self.bot.db.inserttracking(ctx.guild.id, _channel.id, ipport, 0)
 
     @server.command(description="Delete an existed task query on guild")
     @commands.has_permissions(manage_guild=True)
     async def delete(self, ctx: discord.ApplicationContext):
-        notify_list = await gettracking(ctx.guild.id)
+        notify_list = await self.bot.db.gettracking(ctx.guild.id)
 
         if not len(notify_list):
             await ctx.respond("This guild currently has no server query")
             return
         opt = [discord.SelectOption(label=x, value=x) for x in notify_list]
-
-        await ui_utils.view_select_server_query(ctx, opt)
+        await ui_utils.select_ip(ctx, opt)
 
     @slash_command(description="Update map list (bot owner only)")
     @commands.cooldown(1, 3600, commands.BucketType.user)
@@ -239,14 +241,14 @@ class MapCommands(commands.Cog):
             await ctx.respond("None map found!")
             return
 
-        user_notified_maps = await getnotify(ctx.author.id)
-        _options = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
-        await ui_utils.view_select_map(ctx, _options, True)
+        user_notified_maps = await self.bot.db.getnotify(ctx.author.id)
+        opt = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
+        await ui_utils.select_map(ctx, opt)
 
     @notify.command(name="list", description="Get your notification list")
     async def notify_list(self, ctx: discord.ApplicationContext):
         await ctx.defer()
-        user_notify = await getnotify(ctx.author.id)
+        user_notify = await self.bot.db.getnotify(ctx.author.id)
         if len(user_notify) < 1:
             await ctx.respond("Currently no notification!")
             return
@@ -270,12 +272,13 @@ class MapCommands(commands.Cog):
     @notify.command(name="edit", description="Edit or delete your notification list")
     async def notify_edit(self, ctx: discord.ApplicationContext):
         await ctx.defer()
-        user_notify = await getnotify(ctx.author.id)
+        user_notify = await self.bot.db.getnotify(ctx.author.id)
         if len(user_notify) < 1:
             await ctx.respond("Currently no notification!")
             return
-        _options = [discord.SelectOption(label=a, value=a) for a in user_notify]
-        await ui_utils.view_select_map(ctx, _options, False)
+
+        opt = [discord.SelectOption(label=a, value=a) for a in user_notify]
+        await ui_utils.select_map(ctx, opt, edit=True)
 
 
 def setup(bot):

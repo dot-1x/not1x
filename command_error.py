@@ -105,8 +105,11 @@ async def CheckError(
     _tb = Path("logs\\traceback.log").exists()
     with open("logs/traceback.log", "a") as f:
         f.write(
-            str(datetime.utcnow()) + "\n" + f"ID: {_err_id}\n" + str(error.with_traceback(error.__traceback__)) + "\n"
+            str(datetime.utcnow())
+            + "\n"
+            + f"ID: {_err_id}\n"
+            + "".join(traceback.format_exception(type(error), error, error.__traceback__))
+            + "\n"
         )
-        traceback.print_tb(error.__traceback__, file=f)
 
     await std_err.send(embed=_err_msg)

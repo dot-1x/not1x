@@ -1,4 +1,4 @@
-py-cord==2.0.0rc1
+py-cord
 aiomysql
 bs4
 python-a2s

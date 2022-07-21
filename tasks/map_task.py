@@ -9,8 +9,7 @@ from ipaddress import ip_address
 
 import discord
 
-from db import (fetchip, fetchuser, getnotify, iterdb, updateplayers,
-                updateserver, updatetracking)
+from db import iterdb
 from enums import *
 from logs import setlog
 from source_query import GetServer
@@ -66,15 +65,18 @@ class ServerTask:
         except discord.NotFound:
             try:
                 msg = await channel.send(embed=embed, view=view)
-                await updatetracking(guild, ip, msg.id)
+                await self.bot.db.updatetracking(guild, ip, msg.id)
             except discord.Forbidden:
                 _logger.warning(f"Cannot send tracking message to {channel.id}")
             except TimeoutError:
                 _logger.critical(f"Failed to update to database")
             except Exception as e:
                 _logger.error(f"Cannot update message on {channel.id} with error: {e}")
+        except discord.Forbidden:
+            pass
         except Exception as e:
-            traceback.print_exc(file=io.FileIO("logs/traceback.logs"))
+            with open("logs/traceback.log", "a") as f:
+                traceback.print_exc(file=f)
             _logger.error(e)
 
     async def servercheck(self):
@@ -92,16 +94,16 @@ class ServerTask:
         if self.mapname != server_info.maps and server_info.status:
             if self.mapname != "Unknown!":
                 self._maptime = _st - self._maptime
-                await updateserver(  # update old map to db
+                await self.bot.db.updateserver(  # update old map to db
                     self.ipport,
                     self.mapname,
                     date_now,
                     round(self._maptime.seconds / 60),
                     round(sum(self._players) / len(self._players)),
                 )
-                await updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
+                await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
             else:
-                await updateserver(self.ipport, server_info.maps, date_now)
+                await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)
 
             self._maptime = _st
             self.playedtime = round(datetime.now().timestamp())
@@ -110,7 +112,9 @@ class ServerTask:
             self._players.clear()
 
         self._players.append(server_info.player)
-        await updateplayers(self.ipport, self.mapname, date_now, round(sum(self._players) / len(self._players)))
+        await self.bot.db.updateplayers(
+            self.ipport, self.mapname, date_now, round(sum(self._players) / len(self._players))
+        )
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
 
@@ -124,21 +128,20 @@ class ServerTask:
 
         if not self._notif and self.ipport != "103.62.48.10:27058" and self.isonline:
             self._notif = True
-            async for _, userid, _, _ in iterdb(await fetchuser()):
+            async for _, userid, _, _ in iterdb(await self.bot.db.fetchuser()):
                 _user = self.bot.get_user(userid)
-                notif = await getnotify(userid)
+                notif = await self.bot.db.getnotify(userid)
                 if not _user:
                     continue
                 if self.mapname.lower() in notif:
                     try:
                         await _user.send(
-                            content="**Your favorite map is being played!**",
                             embed=server_info,
                         )
                     except:
                         _logger.warning(f"Cannot send message to {userid}")
 
-        async for _, guild, channel, tracking_ip, message in iterdb(await fetchip(self.ipport)):
+        async for _, guild, channel, tracking_ip, message in iterdb(await self.bot.db.fetchip(self.ipport)):
             channel: discord.TextChannel = self.bot.get_channel(channel)
             if not channel:
                 continue

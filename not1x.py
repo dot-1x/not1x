@@ -3,6 +3,7 @@ import os
 import pathlib
 import traceback
 import typing as t
+from ast import Store
 from datetime import datetime
 from ipaddress import ip_address
 
@@ -12,13 +13,12 @@ from discord.ext.commands.errors import *
 
 import ui_utils
 from command_error import CheckError, StdErrChannel
-from db import connection, getserverdata, loadguild
+from db import connection
 from enums import *
 from logs import setlog
 from tasks.map_task import ServerTask
 
-__version__ = "0.4"
-__all__ = ["Bot"]
+__version__ = "0.5"
 
 _logger = setlog(__name__)
 
@@ -33,28 +33,29 @@ class CustomHelp(commands.HelpCommand):
 
 
 class Bot(bridge.Bot):
-    def __init__(self, config: dict, *, token: str):
+    def __init__(self, config: dict, *, token: str, db: connection):
         self.prefix = "."
         self.ready = False
         self.help = CustomHelp()
         self.config = config
         self.__token = token
-        self._fail_connect = False
+        intent = discord.Intents(
+            message_content=True,
+            guild_messages=True,
+            guilds=True,
+            members=True,
+            messages=True,
+        )
+
         super().__init__(
             command_prefix=self.prefix,
             owner_ids=Data.OWNER.value,
             case_insensitive=True,
-            intents=discord.Intents.all(),
+            intents=intent,
             help_command=self.help,
         )
         _logger.info("++++++ Loading not1x ++++++")
         _logger.info(f"Version: {__version__}")
-        try:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(connection.conn())
-        except:
-            _logger.critical("Failed to connect to database")
-            self._fail_connect = True
 
         self._pl_list_button = False
         self._persiew = {}
@@ -63,12 +64,9 @@ class Bot(bridge.Bot):
         self.load_extension_from("cogs")
         # self.load_extension("utils")
         self.add_bridge_command(self.reload_ext)
+        self.db = db
 
     def run(self):
-        if self._fail_connect:
-            _logger.error("Connection is failed!")
-            self.loop.stop()
-            return
         super().run(self.__token)
 
     def map_tasks(self):
@@ -96,7 +94,7 @@ class Bot(bridge.Bot):
                 try:
                     await asyncio.wait_for(l.servercheck(), 60)
                 except Exception as e:
-                    _logger.error(f"global loop encountered an error: {e}")         
+                    _logger.error(f"global loop encountered an error: {e}")
                     with open("logs/traceback.log", "a") as f:
                         traceback.print_exc(file=f)
                     continue
@@ -128,8 +126,8 @@ class Bot(bridge.Bot):
 
         async for guild in self.fetch_guilds():
             try:
-                await loadguild(guild.id)
-            except:
+                await self.db.loadguild(guild.id)
+            except Exception as e:
                 _logger.critical("Failed to load guild from database")
                 self.loop.stop()
 
@@ -144,7 +142,10 @@ class Bot(bridge.Bot):
         _logger.info("Bot has been disconnected from discord")
 
     async def on_guild_join(self, guild: discord.Guild):
-        await loadguild(guild.id)
+        try:
+            await self.db.loadguild(guild.id)
+        except:
+            _logger.error("Failed to insert guild to database")
         return super().on_guild_join(guild)
 
     async def on_message(self, message: discord.Message = None):
@@ -179,8 +180,8 @@ class Bot(bridge.Bot):
             _logger.info(f"Reloaded extension {name}")
             await ctx.send(f"Reloaded extension {name}")
 
-    def load_extension(self, name, *, package=None):
-        super().load_extension(name, package=package)
+    def load_extension(self, name, *, package=None, store=False):
+        super().load_extension(name, package=package, store=store)
 
     def load_extension_from(
         self,
@@ -215,7 +216,7 @@ class Bot(bridge.Bot):
 
         for ext_path in glob("[!_]*.py"):
             ext = str(ext_path.with_suffix("")).replace(os.sep, ".")
-            self.load_extension(name=ext)
+            self.load_extension(name=ext, store=False)
 
     def check_test(ctx: commands.Context):
         return ctx.channel.id == Data.TEST_CHANNEL.value

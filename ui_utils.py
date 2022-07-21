@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import io
 import typing as t
 from datetime import datetime
 from ipaddress import ip_address
 from itertools import chain
 
 import discord
+import pandas as pd
 from discord.ext import commands, pages
+from numpy import place
 
-from db import *
+from db import iterdb
 from enums import *
 from logs import setlog
 from source_query import GetServer
@@ -39,10 +42,17 @@ class PlayerListV(discord.ui.View):
             style=discord.ButtonStyle.primary,
             label="Server Stats",
         )
+        btn3 = discord.ui.Button(
+            custom_id=f"{ip}:{port}:WeekStats",
+            style=discord.ButtonStyle.blurple,
+            label="Weekly Stats",
+        )
         btn.callback = self.sendplayer
         btn2.callback = self.sendstats
+        btn3.callback = self.weekstats
         self.add_item(btn)
         self.add_item(btn2)
+        self.add_item(btn3)
 
     async def sendplayer(self, _interaction: discord.Interaction):
         _sv = await GetServer(self.ip, self.port)
@@ -76,7 +86,7 @@ class PlayerListV(discord.ui.View):
         lim = 0
         total_average = []
         async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(
-            sorted(await fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)
+            sorted(await self.bot.db.fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)
         ):
             if lim > 24:
                 break
@@ -99,6 +109,49 @@ class PlayerListV(discord.ui.View):
             _logger.info(f"server stats {self.ipport} send to {_interaction.user}")
             await _interaction.followup.send(content="Server stats send to private message", ephemeral=True)
 
+    async def weekstats(self, _interaction: discord.Interaction):
+        x = await self.bot.db.fetchserverdata(self.ipport)
+        x = [a for a in x if (datetime.now() - a[4]).days < 7]
+        data = {}
+        for _, ip, Maps, TimePlayed, LastPlayed, PlayTime, Played, AveragePlayers in x:
+            if ip not in data:
+                data[ip] = {}
+            if Maps not in data[ip]:
+                data[ip][Maps] = {
+                    "Ip": ip,
+                    "Map": Maps,
+                    "Play_Time": PlayTime,
+                    "Played": Played,
+                    "Average_Player": [AveragePlayers],
+                    "Last_Played": LastPlayed,
+                }
+            else:
+                if data[ip][Maps]["Last_Played"] < LastPlayed:
+                    data[ip][Maps]["Last_Played"] = LastPlayed
+                data[ip][Maps]["Play_Time"] += PlayTime
+                data[ip][Maps]["Played"] += Played
+                data[ip][Maps]["Average_Player"].append(AveragePlayers)
+        listed = []
+        for k in data:
+            for m in data[k]:
+                listed.append(tuple(data[k][m].values()))
+        d = pd.DataFrame(
+            listed,
+            columns=("Ip", "Maps", "Time Played (minutes)", "Played time", "Average Players", "Last Played (UTC+0)"),
+        )
+        d = d.sort_values("Time_Played", ascending=False)
+        b = io.BytesIO(bytes(d.to_string(), "utf-8"))
+        file = discord.File(b, ip + ".txt")
+        try:
+            await _interaction.user.send(content="**Note: Data is not 100%% accurate**", file=file)
+        except discord.Forbidden:
+            await _interaction.followup.send("i cant send the week stats on private message", ephemeral=True)
+        except Exception as e:
+            _logger.warning(e)
+        else:
+            _logger.info(f"server stats {self.ipport} send to {_interaction.user}")
+            await _interaction.followup.send(content="Server week stats send to private message", ephemeral=True)
+
 
 class Confirm(discord.ui.View):
     def __init__(self, author: discord.Member = None, timeout: float = 180):
@@ -111,6 +164,7 @@ class Confirm(discord.ui.View):
         if self.author != _interact.user:
             await _interact.response.send_message(content="This confirmation is not for you!", ephemeral=True)
             return
+        await _interact.response.edit_message(content="Option CONFIRMED!")
         self.cancel = False
         self.stop()
 
@@ -119,229 +173,133 @@ class Confirm(discord.ui.View):
         if self.author != _interact.user:
             await _interact.response.send_message(content="This confirmation is not for you!", ephemeral=True)
             return
+        await _interact.response.edit_message(content="Option CANCELED!")
         self.cancel = True
         self.stop()
 
 
-class ChooseView(discord.ui.View):
+class ChooseView(discord.ui.Select["PageUi"]):
     def __init__(
         self,
         author: discord.Member,
         options: t.List[discord.SelectOption],
-        ui_placeholder: str,
-        max_val: int = 25,
-        min_val: int = 1,
-        msg: discord.Message = None,
-        embed: discord.Embed = None,
+        title: str,
+        val: int,
     ):
         self.author = author
-        self.selectedval = []
-        self.msg = msg
-        self.embed = embed
-        super().__init__(timeout=180)
-        select_opt = discord.ui.Select(
-            placeholder=ui_placeholder, max_values=max_val, min_values=min_val, options=options
-        )
-        select_opt.callback = self.interact
-        self.add_item(select_opt)
+        self.opt_ = options
+        self.title = title
+        self.value = val
+        super().__init__(placeholder=title, min_values=0, max_values=len(self.opt_), options=self.opt_)
 
-    async def interact(self, _select: discord.ui.Select, _interact: discord.Interaction):
-        if _interact.user != self.author:
-            return
-        self.selectedval = _select.values
-        em: discord.Embed = self.msg.embeds[0]
-        desc = em.description
-        print(desc)
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(content=f"Selected items: {sorted(self.values)}", ephemeral=True)
+        self.view.selected[f"Select{self.value}"] = self.values
 
 
-class GeneratePage(pages.Paginator):
-    def __init__(
-        self,
-        options: t.List[discord.SelectOption],
-        pages: t.List[str] | t.List[pages.Page] | t.List[t.List[discord.Embed] | discord.Embed],
-    ) -> None:
-        super().__init__()
-        pages.PageGroup(
-            pages=pages,
-        )
+class PageUi(discord.ui.View):
+    def __init__(self, author: discord.Member, title: str, options: t.List[ChooseView], timeout: float = 60) -> None:
+        super().__init__(timeout=timeout)
+        self.author = author
+        self.options = options
+        self.selected = {}
 
+        self.opt = [discord.SelectOption(label=a.title, value=str(a.value)) for a in options]
+        self.select = discord.ui.Select(placeholder=title, min_values=1, max_values=1, options=self.opt)
+        self.select.callback = self.select_callback
 
-async def view_select_map(
-    ctx: discord.ApplicationContext,
-    _options: t.List[discord.SelectOption],
-    notify: bool,
-):
-    _pages = []
-    _selected_val = {}
-    _uis = []
-    embeds = discord.Embed()
-    embeds.title = "SELECTED MAPS:"
-    _pnum = 0
+        self.add_item(self.select)
 
-    if len(_options) < 1:
-        await ctx.respond("None map found!")
-        return
+    async def select_callback(self, interact: discord.Interaction):
+        _selected: ChooseView = self.options[int(self.select.values[0])]
+        self.clear_items()
+        self.add_item(self.select)
 
-    for x in range(0, len(_options), 25):
-        _opt = _options[x : x + 25]
-        _pnum += 1
-
-        class ChooseView(discord.ui.View):
-            def __init__(self, _author: discord.Member):
-                self.author = _author
-                self.selectedval = []
-                self.msg = None
-                super().__init__(timeout=180)
-
-            def set_msg(self, msg: discord.Message):
-                self.msg = msg
-
-            @discord.ui.select(
-                placeholder="select map",
-                min_values=0,
-                max_values=len(_opt),
-                options=_opt,
+        if f"Select{_selected.value}" in self.selected:
+            _opt = _selected.options
+            _selected = ChooseView(
+                self.author,
+                [
+                    discord.SelectOption(
+                        label=a.label,
+                        value=a.value,
+                        default=True if a.value in self.selected[f"Select{_selected.value}"] else False,
+                    )
+                    for a in _opt
+                ],
+                _selected.title,
+                _selected.value,
             )
-            async def interact(self, _select: discord.ui.Select, _interact: discord.Interaction):
-                if _interact.user != self.author:
-                    return
-                self.selectedval = _select.values
-                _selected_val[self] = _select.values
-                embeds.description = f"```{list(chain.from_iterable([v for v in _selected_val.values()]))}```"
-                await self.msg.edit(embed=embeds)
 
-        ui_view = ChooseView(ctx.author)
-        _pgroup = pages.PageGroup(
-            pages=[
-                f"Map Page {_pnum}\n**NOTE: If you switch to another page, you will have to set up again on current page!**"
-            ],
-            label=f"Select map page {_pnum}",
-            description=f"Data will be saved after you select map",
-            custom_view=ui_view,
-            author_check=True,
-        )
-        _pages.append(_pgroup)
-        _uis.append(ui_view)
-    _confirm = Confirm(ctx.author, 180)
-    _paginator = pages.Paginator(pages=_pages, show_menu=True, author_check=True)
-    await _paginator.respond(ctx.interaction, ephemeral=False)
-    msg = await ctx.respond(
-        "Press Confirm to {} selected maps {} notification list".format(
-            "add" if notify else "delete", "to" if notify else "from"
-        ),
-        view=_confirm,
-        ephemeral=True,
+        self.add_item(_selected)
+        await interact.response.edit_message(view=self)
+
+
+async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.SelectOption], edit: bool = False):
+    views = []
+    bot: not1x.Bot = ctx.bot
+    for num, x in enumerate(range(0, len(opt), 25)):
+        _opt = opt[x : x + 25]
+        views.append(ChooseView(ctx.author, _opt, title=f"Select Map {num+1}", val=num))
+    page = PageUi(ctx.author, title="Select Page", options=views)
+    embed = discord.Embed(
+        title="Please Choose a map to update", color=ctx.author.color, timestamp=discord.utils.utcnow()
     )
-    for _ui_select in _uis:
-        _ui_select.set_msg(msg)
-    await _confirm.wait()
-    _selected_map = list(chain.from_iterable([v for v in _selected_val.values()]))
-    if _confirm.cancel or len(_selected_val) <= 0:
-        await ctx.respond("Option canceled", ephemeral=True)
-        embeds.title = "No map were {}".format("notified" if notify else "deleted")
-        embeds.description = None
-    else:
-        await insertnotify(ctx.author.id, ctx.author, _selected_map, delete=not notify)
-        await ctx.respond(
-            content="Succesfully {} map notification:\n```{}```".format(
-                "added to" if notify else "deleted from", _selected_map
-            ),
-            ephemeral=True,
-        )
-        embeds.title = "Notified Maps:" if notify else "Deleted maps: "
+    embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar.url if ctx.author.avatar.url else embed.Empty)
+    await ctx.respond(view=page, embed=embed)
 
-    embeds.color = ctx.author.color
-    embeds.set_author(name=ctx.author)
-    await _paginator.disable(include_custom=True, page=embeds)
-    _confirm.stop()
-    _paginator.stop()
+    _c = Confirm(ctx.author, 60)
+
+    await ctx.followup.send(content="Press Confirm to update current notification list", view=_c, ephemeral=True)
+    await _c.wait()
+
+    page.disable_all_items()
+
+    selected = list(chain.from_iterable([v for v in page.selected.values()]))
+    embed.title = "Selected Map" if len(selected) > 1 else "No map were selected!"
+
+    embed.description = "\n".join([a for a in selected])
+    if not _c.cancel and len(selected) > 0:
+        await bot.db.insertnotify(ctx.author.id, ctx.author, selected, delete=edit)
+    if _c.cancel:
+        embed.title = "Option Canceled!"
+        embed.description = embed.Empty
+
+    await ctx.edit(view=page, embed=embed)
+
+    page.stop()
 
 
-async def view_select_server_query(ctx: discord.ApplicationContext, _options: t.List[discord.SelectOption]):
-
-    _pages = []
-    _selected_val = {}
-    _uis = []
-    embeds = discord.Embed()
-    embeds.title = "SELECTED IP:"
-    _pnum = 0
-
-    if len(_options) < 1:
-        await ctx.respond("None query found!")
-        return
-
-    for x in range(0, len(_options), 25):
-        _opt = _options[x : x + 25]
-        _pnum += 1
-
-        class ChooseView(discord.ui.View):
-            def __init__(self, _author: discord.Member):
-                self.author = _author
-                self.selectedval = []
-                self.msg = None
-                super().__init__(timeout=180)
-
-            def set_msg(self, msg: discord.Message):
-                self.msg = msg
-
-            @discord.ui.select(
-                placeholder="select IP",
-                min_values=0,
-                max_values=len(_opt),
-                options=_opt,
-            )
-            async def interact(self, _select: discord.ui.Select, _interact: discord.Interaction):
-                if _interact.user != self.author:
-                    return
-                self.selectedval = _select.values
-                _selected_val[self] = _select.values
-                embeds.description = f"```{list(chain.from_iterable([v for v in _selected_val.values()]))}```"
-                await self.msg.edit(embed=embeds)
-                return _interact.response.is_done()
-
-        ui_view = ChooseView(ctx.author)
-        _pgroup = pages.PageGroup(
-            pages=[
-                f"Page {_pnum}\n**NOTE: If you switch to another page, you will have to set up again on current page!**"
-            ],
-            label=f"Select page {_pnum}",
-            description=f"Data will be saved after you select IP",
-            custom_view=ui_view,
-            author_check=True,
-        )
-        _pages.append(_pgroup)
-        _uis.append(ui_view)
-    _confirm = Confirm(ctx.author, 180)
-    _paginator = pages.Paginator(pages=_pages, show_menu=True, author_check=True)
-    await _paginator.respond(ctx.interaction, ephemeral=False)
-    msg = await ctx.respond(
-        "Press Confirm to delete selected map query from guild",
-        view=_confirm,
-        ephemeral=True,
+async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectOption], edit: bool = False):
+    views = []
+    bot: not1x.Bot = ctx.bot
+    for num, x in enumerate(range(0, len(opt), 25)):
+        _opt = opt[x : x + 25]
+        views.append(ChooseView(ctx.author, _opt, title=f"Select IP {num+1}", val=num))
+    page = PageUi(ctx.author, title="Select IP", options=views)
+    embed = discord.Embed(
+        title="Please Choose an IP to update", color=ctx.author.color, timestamp=discord.utils.utcnow()
     )
-    for _ui_select in _uis:
-        _ui_select.set_msg(msg)
-    await _confirm.wait()
-    _selected_ip = list(chain.from_iterable([v for v in _selected_val.values()]))
-    if _confirm.cancel or len(_selected_val) <= 0:
-        await ctx.respond("Option canceled", ephemeral=True)
-        embeds.title = "No query were deleted"
-        embeds.description = None
-    else:
-        try:
-            for ip in _selected_ip:
-                print(await gettracking(ctx.guild.id, ip))
-        except Exception as e:
-            raise e
-        else:
-            await ctx.respond(
-                content=f"Succesfully deleted from map query {_selected_ip}",
-                ephemeral=True,
-            )
-            embeds.title = "Deleted query"
+    embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar.url if ctx.author.avatar.url else embed.Empty)
+    await ctx.respond(view=page, embed=embed)
 
-    embeds.color = ctx.author.color
-    embeds.set_author(name=ctx.author)
-    await _paginator.disable(include_custom=True, page=embeds)
-    _confirm.stop()
-    _paginator.stop()
+    _c = Confirm(ctx.author, 60)
+
+    await ctx.followup.send(content="Press Confirm to update selected IP from guild", view=_c, ephemeral=True)
+    await _c.wait()
+
+    page.disable_all_items()
+
+    selected = list(chain.from_iterable([v for v in page.selected.values()]))
+    embed.title = "Selected IP" if len(selected) > 1 else "No IP were selected!"
+
+    embed.description = "\n".join([a for a in selected])
+    if not _c.cancel and len(selected) > 0:
+        _logger.info(selected)
+    if _c.cancel:
+        embed.title = "Option Canceled!"
+        embed.description = embed.Empty
+
+    await ctx.edit(view=page, embed=embed)
+
+    page.stop()

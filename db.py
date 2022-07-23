@@ -31,7 +31,8 @@ CREATE TABLE `not1x`.`user_data` (
     `id` INT NOT NULL AUTO_INCREMENT , 
     `userid` BIGINT NOT NULL , 
     `name` VARCHAR(1024) NOT NULL , 
-    `notified_maps` MEDIUMTEXT NOT NULL , 
+    `notified_maps` VARCHAR NOT NULL , 
+    `notifed` BOOL NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
@@ -47,28 +48,37 @@ CREATE TABLE `not1x`.`server_info` (
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
+SERVER_DATA = """
+CREATE TABLE `not1x`.`server_data` ( 
+    `id` INT NOT NULL AUTO_INCREMENT , 
+    `server_ip` VARCHAR(255) NOT NULL , 
+    `last_map` VARCHAR(255) NOT NULL , 
+    PRIMARY KEY (`id`)
+) ENGINE = InnoDB;
+"""
 
 loop = asyncio.get_event_loop()
 
 
 class connection:
     def __init__(self) -> None:
+        self.cursor: aiomysql.Cursor = None
+        self.con: aiomysql.Connection = None
         with open("_debugs/config.json", "r") as f:
-            data = json.load(f)
-            data = data["database"]
-            self.con: aiomysql.Connection = loop.run_until_complete(
-                aiomysql.connect(
-                    host=data["host"],
-                    port=data["port"],
-                    user=data["user"],
-                    password=data["password"],
-                    db=data["db"],
-                )
-            )
+            self.__data = json.load(f)
+            self.__data = self.__data["database"]
 
     async def execute(
         self, query: str, *args, fetch: bool = False, fetchall: bool = False, res: bool = True, commit: bool = False
     ) -> t.Tuple | None:
+        
+        self.con: aiomysql.Connection = await aiomysql.connect(
+                host=self.__data["host"],
+                port=self.__data["port"],
+                user=self.__data["user"],
+                password=self.__data["password"],
+                db=self.__data["db"],
+            )
         self.cursor: aiomysql.Cursor = await self.con.cursor()
         await self.cursor.execute(query, *args)
         _res = None
@@ -80,7 +90,9 @@ class connection:
         if commit:
             await self.con.commit()
         if res:
+            self.con.close()
             return _res
+        self.con.close()
 
     async def getnotify(self, userid: int) -> list:
         r = await self.execute(
@@ -88,34 +100,32 @@ class connection:
         )
         return [m for m in r[0].split(",")] if r and len(r[0]) > 1 else []
 
-    async def insertnotify(self, userid: int, name: str, maps: t.List[str], *, delete: bool = False):
-        sep_maps = ",".join(maps)
+    async def insertnotify(self, userid: int, name: str, maps: str, *, delete: bool = False):
         r = await self.execute(
             "SELECT userid FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
         )
         if r:
-            existed_notification = await self.getnotify(userid)
-            if not delete:
-                _maps = [a for a in maps if a not in existed_notification]
-                _maps.extend(existed_notification)
-            else:
-                _maps = [a for a in existed_notification if a not in maps]
-            sep_maps = ",".join(sorted(_maps))
-            await self.execute(
-                "UPDATE `user_data` SET `notified_maps`= %s WHERE userid = %s",
-                (
-                    str(sep_maps),
-                    str(userid),
-                ),
+            if delete:
+                await self.execute(
+                "DELETE FROM `user_data` WHERE `notified_maps` = %s",
+                (str(userid), str(name), str(maps)),
                 commit=True,
                 res=False,
                 fetch=False,
             )
+            else:
+                await self.execute(
+                    "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
+                    (str(userid), str(name), str(maps)),
+                    commit=True,
+                    res=False,
+                    fetch=False,
+                )
             _logger.info(f"Successfully updated notify for {name}")
         else:
             await self.execute(
                 "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
-                (str(userid), str(name), str(sep_maps)),
+                (str(userid), str(name), str(maps)),
                 commit=True,
                 res=False,
                 fetch=False,
@@ -224,7 +234,9 @@ class connection:
         """
         r = await self.execute("SELECT * FROM `server_info` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True)
         return r
-
+    
+    def fetchdata(self):
+        return loop.run_until_complete(self.fetchuser())
 
 class iterdb:
     def __init__(self, data=t.Union[list, tuple]) -> None:
@@ -240,3 +252,4 @@ class iterdb:
         iter = self.data[self.count]
         self.count += 1
         return iter
+

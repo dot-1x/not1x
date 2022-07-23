@@ -79,7 +79,7 @@ class ServerTask:
                 traceback.print_exc(file=f)
             _logger.error(e)
 
-    async def servercheck(self):
+    async def servercheck(self) -> None:
         _st = datetime.now()
 
         ip = ip_address(self.ipport.split(":")[0])

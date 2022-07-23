@@ -44,7 +44,7 @@ class PlayerListV(discord.ui.View):
         )
         btn3 = discord.ui.Button(
             custom_id=f"{ip}:{port}:WeekStats",
-            style=discord.ButtonStyle.blurple,
+            style=discord.ButtonStyle.green,
             label="Weekly Stats",
         )
         btn.callback = self.sendplayer
@@ -110,6 +110,7 @@ class PlayerListV(discord.ui.View):
             await _interaction.followup.send(content="Server stats send to private message", ephemeral=True)
 
     async def weekstats(self, _interaction: discord.Interaction):
+        await _interaction.response.defer(ephemeral=True)
         x = await self.bot.db.fetchserverdata(self.ipport)
         x = [a for a in x if (datetime.now() - a[4]).days < 7]
         data = {}
@@ -139,17 +140,17 @@ class PlayerListV(discord.ui.View):
             listed,
             columns=("Ip", "Maps", "Time Played (minutes)", "Played time", "Average Players", "Last Played (UTC+0)"),
         )
-        d = d.sort_values("Time_Played", ascending=False)
+        d = d.sort_values("Time Played (minutes)", ascending=False)
         b = io.BytesIO(bytes(d.to_string(), "utf-8"))
         file = discord.File(b, ip + ".txt")
         try:
-            await _interaction.user.send(content="**Note: Data is not 100%% accurate**", file=file)
+            await _interaction.user.send(content="**Note: Data is not 100% accurate**", file=file)
         except discord.Forbidden:
             await _interaction.followup.send("i cant send the week stats on private message", ephemeral=True)
         except Exception as e:
             _logger.warning(e)
         else:
-            _logger.info(f"server stats {self.ipport} send to {_interaction.user}")
+            _logger.info(f"server week stats {self.ipport} send to {_interaction.user}")
             await _interaction.followup.send(content="Server week stats send to private message", ephemeral=True)
 
 

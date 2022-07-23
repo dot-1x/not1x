@@ -59,15 +59,28 @@ class Bot(bridge.Bot):
 
         self._pl_list_button = False
         self._persiew = {}
-        self.loop_maptsk = {}
+        self.loop_maptsk: t.Dict[str, ServerTask] = {}
 
         self.load_extension_from("cogs")
         # self.load_extension("utils")
         self.add_bridge_command(self.reload_ext)
         self.db = db
+        self.data = {}
+
 
     def run(self):
-        super().run(self.__token)
+        loop = asyncio.get_event_loop()
+        try:
+            loop.run_until_complete(super().start(self.__token))
+        except KeyboardInterrupt:
+            _logger.debug(self.loop_maptsk)
+            _logger.critical("BOT CLOSED!")
+            loop.run_until_complete(super().close())
+        except RuntimeError:
+            _logger.critical("BOT CLOSED!")
+            loop.run_until_complete(super().close())
+        finally:
+            loop.close()
 
     def map_tasks(self):
         _sv_list = self.config["serverquery"]
@@ -90,7 +103,6 @@ class Bot(bridge.Bot):
         @tasks.loop(seconds=60)
         async def globalqueryloop():
             for l in self.loop_maptsk.values():
-                l: ServerTask
                 try:
                     await asyncio.wait_for(l.servercheck(), 60)
                 except Exception as e:
@@ -137,9 +149,6 @@ class Bot(bridge.Bot):
             _logger.info(f"Loaded cog: {c}")
 
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
-
-    async def on_disconnect(*args, **kwargs):
-        _logger.info("Bot has been disconnected from discord")
 
     async def on_guild_join(self, guild: discord.Guild):
         try:

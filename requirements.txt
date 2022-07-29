@@ -6,3 +6,4 @@ requests
 Pillow>=9.0
 numpy
 pandas
+httpx

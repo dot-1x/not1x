@@ -10,6 +10,7 @@ from pathlib import Path
 
 import aiomysql
 import pandas
+from enums import MapEnum
 
 from logs import setlog
 
@@ -32,7 +33,6 @@ CREATE TABLE `not1x`.`user_data` (
     `userid` BIGINT NOT NULL , 
     `name` VARCHAR(1024) NOT NULL , 
     `notified_maps` VARCHAR NOT NULL , 
-    `notifed` BOOL NOT NULL,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
@@ -56,9 +56,22 @@ CREATE TABLE `not1x`.`server_data` (
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
-
 loop = asyncio.get_event_loop()
 
+class iterdb:
+    def __init__(self, data=t.Union[list, tuple]) -> None:
+        self.count = 0
+        self.data = data
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self.count >= len(self.data):
+            raise StopAsyncIteration
+        iter = self.data[self.count]
+        self.count += 1
+        return iter
 
 class connection:
     def __init__(self) -> None:
@@ -98,43 +111,45 @@ class connection:
         r = await self.execute(
             "SELECT notified_maps FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
         )
-        return [m for m in r[0].split(",")] if r and len(r[0]) > 1 else []
+        return list(chain.from_iterable(r)) if r else []
 
-    async def insertnotify(self, userid: int, name: str, maps: str, *, delete: bool = False):
+    async def insertnotify(self, userid: int, name: str, maps: t.List[str], *, delete: bool = False):
         r = await self.execute(
             "SELECT userid FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
         )
         if r:
-            if delete:
-                await self.execute(
-                "DELETE FROM `user_data` WHERE `notified_maps` = %s",
-                (str(userid), str(name), str(maps)),
-                commit=True,
-                res=False,
-                fetch=False,
-            )
-            else:
-                await self.execute(
-                    "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
-                    (str(userid), str(name), str(maps)),
+            for map in maps:
+                if delete:
+                    await self.execute(
+                    "DELETE FROM `user_data` WHERE `notified_maps` = %s AND `userid` = %s",
+                    (str(map), str(userid)),
                     commit=True,
                     res=False,
                     fetch=False,
                 )
+                else:
+                    await self.execute(
+                        "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
+                        (str(userid), str(name), str(map)),
+                        commit=True,
+                        res=False,
+                        fetch=False,
+                    )
             _logger.info(f"Successfully updated notify for {name}")
         else:
-            await self.execute(
-                "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
-                (str(userid), str(name), str(maps)),
-                commit=True,
-                res=False,
-                fetch=False,
-            )
+            for map in maps:
+                await self.execute(
+                    "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
+                    (str(userid), str(name), str(map)),
+                    commit=True,
+                    res=False,
+                    fetch=False,
+                )
             _logger.info(f"Successfully added new user {name} to db")
 
-    async def fetchuser(self) -> tuple:
+    async def fetchuser(self) -> iterdb:
         r = await self.execute("SELECT * FROM `user_data`", fetch=True, fetchall=True, res=True)
-        return r
+        return iterdb(r)
 
     async def fetchguild(self) -> tuple:
         r = await self.execute("SELECT * FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
@@ -144,11 +159,11 @@ class connection:
         r = await self.execute(
             "SELECT * FROM `guild_tracking` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True, res=True
         )
-        return r
+        return iterdb(r)
 
     async def loadguild(self, id: int):
         result = await self.execute("SELECT `guild_id` FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
-        if id in [r[0] for r in list(result)]:
+        if id in list(chain.from_iterable(result)):
             pass
         else:
             await self.execute(
@@ -175,7 +190,6 @@ class connection:
         )
 
     async def updatetracking(self, guild: int, ip: str, msg_id: int):
-        db = await connection.conn()
         await self.execute(
             "UPDATE `guild_tracking` SET `message_id`= %s WHERE `guild_id` = %s AND `tracking_ip` = %s",
             (msg_id, guild, ip),
@@ -218,6 +232,14 @@ class connection:
         else:
             q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
             await self.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date), commit=True)
+            
+        r = await self.execute("SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True)
+        if not r:
+            q = "INSERT INTO `server_data` (`server_ip`, `last_map`) VALUES (%s, %s)"
+            await self.execute(q, (ip, map), commit=True)
+        else:
+            q = "UPDATE `server_data` SET `last_map` = %s WHERE `server_ip` = %s"
+            await self.execute(q, (map, ip), commit=True)
 
     async def updateplayers(self, ip: str, map: str, date: datetime, player: int):
         q = "UPDATE `server_info` SET `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
@@ -234,22 +256,7 @@ class connection:
         """
         r = await self.execute("SELECT * FROM `server_info` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True)
         return r
-    
-    def fetchdata(self):
-        return loop.run_until_complete(self.fetchuser())
 
-class iterdb:
-    def __init__(self, data=t.Union[list, tuple]) -> None:
-        self.count = 0
-        self.data = data
-
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        if self.count >= len(self.data):
-            raise StopAsyncIteration
-        iter = self.data[self.count]
-        self.count += 1
-        return iter
-
+    async def getlastmap(self, ip: str) -> t.Union[str, MapEnum.UNKOWN.value]:
+        r = await self.execute("SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True)
+        return list(chain.from_iterable(r))[0] if r else MapEnum.UNKOWN

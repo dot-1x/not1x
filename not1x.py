@@ -5,7 +5,7 @@ import traceback
 import typing as t
 from ast import Store
 from datetime import datetime
-from ipaddress import ip_address
+from ipaddress import IPv4Address, ip_address
 
 import discord
 from discord.ext import bridge, commands, tasks
@@ -18,7 +18,7 @@ from enums import *
 from logs import setlog
 from tasks.map_task import ServerTask
 
-__version__ = "0.5"
+__version__ = "0.6"
 
 _logger = setlog(__name__)
 
@@ -73,7 +73,6 @@ class Bot(bridge.Bot):
         try:
             loop.run_until_complete(super().start(self.__token))
         except KeyboardInterrupt:
-            _logger.debug(self.loop_maptsk)
             _logger.critical("BOT CLOSED!")
             loop.run_until_complete(super().close())
         except RuntimeError:
@@ -81,6 +80,7 @@ class Bot(bridge.Bot):
             loop.run_until_complete(super().close())
         finally:
             loop.close()
+
 
     def map_tasks(self):
         _sv_list = self.config["serverquery"]

@@ -1,4 +1,7 @@
 import asyncio
+from concurrent import futures
+from concurrent.futures import Future
+from datetime import datetime
 import ipaddress
 import json
 
@@ -13,6 +16,24 @@ from logs import setlog
 _logger = setlog("SourceQuery")
 
 
+def parseflag(content: str):
+    _res = {"flag": ":pirate_flag:", "location": "Unknown!"}
+    try:
+        _content = bs(content, "html.parser")
+        _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
+        _image = _country.find("img")
+    except:
+        return _res
+    with open("country.json", "r") as j:
+        country = json.load(j)
+        for k in country.keys():
+            if _image["title"].lower() in k.lower():
+                _res = {
+                    "flag": f":flag_{country[k].lower()}:",
+                    "location": _image["title"],
+                }
+                return _res
+
 async def get_location(ip: str) -> dict | None:
     url = f"https://www.gametracker.com/server_info/{ip}"
     _res = {"flag": ":pirate_flag:", "location": "Unknown!"}
@@ -20,24 +41,9 @@ async def get_location(ip: str) -> dict | None:
         async with ses.get(url) as req:
             if req.status != 200:
                 return _res
-
-            try:
-                c = await req.text()
-                _content = bs(c, "html.parser")
-                _country = _content.find("span", attrs={"class": "blocknewheadercnt"})
-                _image = _country.find("img")
-            except:
-                return _res
-            with open("country.json", "r") as j:
-                country = json.load(j)
-                for k in country.keys():
-                    if _image["title"].lower() in k.lower():
-                        _res = {
-                            "flag": f":flag_{country[k].lower()}:",
-                            "location": _image["title"],
-                        }
-                        return _res
-                return _res
+            else:
+                _res = await asyncio.get_running_loop().run_in_executor(None, parseflag, (await req.text(encoding="utf-8")))
+    return _res
 
 
 class ServerInfo(discord.Embed):
@@ -45,6 +51,7 @@ class ServerInfo(discord.Embed):
 
         self.ip_port = (str(ip), port)
         self.status = status
+        self.location = location
 
         _ip = ipaddress.ip_address(ip)
         _port = int(port)
@@ -101,7 +108,7 @@ class ServerInfo(discord.Embed):
         try:
             return await a2s.aplayers((str(self.ip_port[0]), self.ip_port[1]), timeout=1)
         except Exception as e:
-            _logger.warning(f"Failed to get {self.ip_port} player list\n" + str(e))
+            # _logger.warning(f"Failed to get {self.ip_port} player list\n" + str(e))
             return []
 
 
@@ -121,3 +128,4 @@ async def GetServer(ip: str, port: int):
         status = True
 
     return ServerInfo(ip, port, loc, _server, status)
+    

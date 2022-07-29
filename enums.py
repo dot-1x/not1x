@@ -1,5 +1,7 @@
 from enum import Enum
+import typing
 
+UknownMap = typing.NewType("UnkownMap", str)
 
 class Status(Enum):
     OFFLINE = ":red_circle: Offline!"
@@ -17,5 +19,5 @@ class Data(Enum):
     TASK_INTERVAL = 60
 
 
-if __name__ == "__main__":
-    print(Data.STD_ERR_CHANNEL)
+class MapEnum(Enum):
+    UNKOWN = UknownMap

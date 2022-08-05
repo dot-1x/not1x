@@ -37,7 +37,7 @@ class PlayerListV(discord.ui.View):
             "WeekStats": {"callback": self.weekstats, "label": "Server Stats", "style": discord.ButtonStyle.primary},
         }
         for btn in self.buttons:
-            _btn = discord.ui.Button(label=f"{ip}:{port}:{btn}", style=self.buttons[btn]["style"])
+            _btn = discord.ui.Button(label=self.buttons[btn]["label"], style=self.buttons[btn]["style"], custom_id=f"{ip}:{port}:{btn}")
             _btn.callback = self.buttons[btn]["callback"]
             self.add_item(_btn)
 

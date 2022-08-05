@@ -59,14 +59,13 @@ class Bot(bridge.Bot):
 
         self._pl_list_button = False
         self._persiew = {}
-        self.loop_maptsk: t.Dict[str, ServerTask] = {}
+        self.server_task: t.Dict[str, tasks.Loop] = {}
 
         self.load_extension_from("cogs")
         # self.load_extension("utils")
         self.add_bridge_command(self.reload_ext)
         self.db = db
         self.data = {}
-
 
     def run(self):
         loop = asyncio.get_event_loop()
@@ -81,9 +80,8 @@ class Bot(bridge.Bot):
         finally:
             loop.close()
 
-
     def map_tasks(self):
-        _sv_list = self.config["serverquery"]
+        _sv_list: t.List[str] = self.config["serverquery"]
         for _sv in _sv_list:
             if not ":" in _sv:
                 _logger.warning('Missing delimiter ":" on ' + _sv)
@@ -98,21 +96,22 @@ class Bot(bridge.Bot):
                 self.persview[_sv] = _view
                 self.add_view(_view)
 
-            ServerTask(self, _sv, _sv, self.persview[_sv])
+            server = ServerTask(self, _sv, _sv, self.persview[_sv])
 
-        @tasks.loop(seconds=60)
-        async def globalqueryloop():
-            for l in self.loop_maptsk.values():
+            @tasks.loop(seconds=60)
+            async def _task():
                 try:
-                    await asyncio.wait_for(l.servercheck(), 60)
+                    await asyncio.wait_for(server.servercheck(), 60)
                 except Exception as e:
-                    _logger.error(f"global loop encountered an error: {e}")
+                    _logger.error(f"{_sv} task encountered an error: {e}")
                     with open("logs/traceback.log", "a") as f:
                         traceback.print_exc(file=f)
-                    continue
 
-        globalqueryloop.start()
-        globalqueryloop.get_task().set_name("globalqueryloop")
+            self.server_task[_sv] = _task
+
+        for task in self.server_task:
+            self.server_task[task].get_task().set_name(task)
+            self.server_task[task].start()
 
         self._pl_list_button = True
         _logger.info("loop map task has been started!")

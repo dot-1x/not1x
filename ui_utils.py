@@ -31,28 +31,15 @@ class PlayerListV(discord.ui.View):
         self.bot = bot
 
         super().__init__(timeout=None)
-        btn = discord.ui.Button(
-            custom_id=f"{ip}:{port}:Players",
-            style=discord.ButtonStyle.secondary,
-            label="Player List",
-        )
-        btn.callback = self.sendplayer
-        btn2 = discord.ui.Button(
-            custom_id=f"{ip}:{port}:Stats",
-            style=discord.ButtonStyle.primary,
-            label="Server Stats",
-        )
-        btn3 = discord.ui.Button(
-            custom_id=f"{ip}:{port}:WeekStats",
-            style=discord.ButtonStyle.green,
-            label="Weekly Stats",
-        )
-        btn.callback = self.sendplayer
-        btn2.callback = self.sendstats
-        btn3.callback = self.weekstats
-        self.add_item(btn)
-        self.add_item(btn2)
-        self.add_item(btn3)
+        self.buttons = {
+            "Players": {"callback": self.sendplayer, "label": "Player List", "style": discord.ButtonStyle.secondary},
+            "Stats": {"callback": self.sendstats, "label": "Server History", "style": discord.ButtonStyle.green},
+            "WeekStats": {"callback": self.weekstats, "label": "Server Stats", "style": discord.ButtonStyle.primary},
+        }
+        for btn in self.buttons:
+            _btn = discord.ui.Button(label=f"{ip}:{port}:{btn}", style=self.buttons[btn]["style"])
+            _btn.callback = self.buttons[btn]["callback"]
+            self.add_item(_btn)
 
     async def sendplayer(self, _interaction: discord.Interaction):
         _sv = await GetServer(self.ip, self.port)

@@ -47,7 +47,6 @@ class ServerTask:
         self._players = []
 
         self._maptime = datetime.now()
-        bot.loop_maptsk[ipport] = self
 
     async def editmsg(
         self,
@@ -78,7 +77,6 @@ class ServerTask:
                 traceback.print_exc(file=f)
             _logger.error(e)
 
-
     async def notifyuser(self, user: discord.User, userid: int, embed: discord.Embed, maps: list):
         if self.mapname.lower() in maps:
             try:
@@ -88,12 +86,9 @@ class ServerTask:
             except:
                 _logger.warning(f"Cannot send message to {userid}")
 
-
     async def servercheck(self) -> None:
         """
         TO DO:
-        Fix last map played,
-        Fix Average Players
         Fix Playtime
         """
         _st = datetime.now()
@@ -108,16 +103,16 @@ class ServerTask:
         self.isonline = server_info.status
 
         date_now = _st.strftime("%Y-%m-%d")
-        self._players.append(server_info.player)
         if self.mapname != server_info.maps and server_info.status:
             if self.mapname != MapEnum.UNKOWN:
                 self._maptime = _st - self._maptime
+                _sumplayers = sum(self._players)
                 await self.bot.db.updateserver(  # update old map to db
                     self.ipport,
                     self.mapname,
                     date_now,
                     round(self._maptime.seconds / 60),
-                    round(sum(self._players) / len(self._players)),
+                    round(_sumplayers / len(self._players) if _sumplayers else 0),
                 )
                 await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
             else:
@@ -129,8 +124,10 @@ class ServerTask:
             self.mapname = server_info.maps
             self._players.clear()
 
+        self._players.append(server_info.player)
+        _sumplayers = sum(self._players)
         await self.bot.db.updateplayers(
-            self.ipport, self.mapname, date_now, round(sum(self._players) / len(self._players))
+            self.ipport, self.mapname, date_now, round(_sumplayers / len(self._players) if _sumplayers else 0)
         )
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
@@ -150,7 +147,7 @@ class ServerTask:
                 notif = await self.bot.db.getnotify(userid)
                 if not _user:
                     continue
-                
+
                 self.bot.loop.run_in_executor(None, self.notifyuser, (_user, userid, server_info, notif))
 
         async for _, guild, channel, tracking_ip, message in await self.bot.db.fetchip(self.ipport):

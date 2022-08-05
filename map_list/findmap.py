@@ -1,8 +1,12 @@
 import asyncio
 import re
+import typing as t
+from ast import AsyncWith
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from itertools import chain
 
-import aiohttp
+import httpx
 from bs4 import BeautifulSoup as bs
 
 from logs import setlog
@@ -15,50 +19,29 @@ MAPSOURCE = {
 }
 
 
-async def aupdatemap():
-    starttime = datetime.now()
-    founded_maps = []
-    async with aiohttp.ClientSession() as session:
-        for src in MAPSOURCE.values():
-            async with session.request("get", src) as req:
-                site = bs(await req.read(), "html.parser")
-                zemap = site.find_all(name="a", href=re.compile("ze_"))
-                for _map in zemap:
-                    if re.search("/ze_", _map["href"]):
-                        _map = _map["href"].split("/")[-1]
-                    else:
-                        _map = _map["href"]
-                    if re.search("bsp", _map) and re.search("bz2", _map):
-                        _mapname = _map.split(".")[0]
-                        founded_maps.append(_mapname.lower())
-
-    map_set = list(dict.fromkeys(sorted(founded_maps)))
-    map_str = "\n".join(map_set)
-    with open("map_list/maplist.txt", "w+") as m:
-        m.write(map_str)
+def parser(site: httpx.Response):
+    scrap = bs(site.read(), "html.parser")
+    maps = []
+    for _map in scrap.find_all(name="a"):
+        _map = _map["href"]
+        if re.search("bsp", _map) and re.search("bz2", _map):
+            if re.search("/", _map):
+                _map = _map.split("/")[-1]
+            _mapname: str = _map.split(".")[0]
+            maps.append(_mapname.lower())
+    return maps
 
 
-def updatemap():
-    # _loop = asyncio.get_event_loop()
-    asyncio.run(aupdatemap())
-    # starttime = datetime.now()
-    # founded_maps = []
-    # for src in MAPSOURCE.values():
-    #     with requests.request("get", src) as req:
-    #         site = bs(req.content, "html.parser")
-    #         zemap = site.find_all(name="a", href=re.compile("ze_"))
-    #         for _map in zemap:
-    #             if re.search("/ze_", _map["href"]):
-    #                 _map = _map["href"].split("/")[-1]
-    #             else:
-    #                 _map = _map["href"]
-    #             if re.search("bsp", _map) and re.search("bz2", _map):
-    #                 _mapname = _map.split(".")[0]
-    #                 founded_maps.append(_mapname.lower())
-
-    # map_set = list(dict.fromkeys(sorted(founded_maps)))
-    # map_str = "\n".join(map_set)
-    # with open("map_list/maplist.txt", "w+") as m:
-    #     m.write(map_str)
-    # endtime = datetime.now()
-    # return endtime-starttime
+async def updatemap():
+    start = datetime.now()
+    maps = []
+    loop = asyncio.get_running_loop()
+    async with httpx.AsyncClient() as client:
+        for k in MAPSOURCE:
+            resp = await client.get(MAPSOURCE[k])
+            with ThreadPoolExecutor() as pool:
+                res = await loop.run_in_executor(pool, parser, resp)
+            maps.append(res)
+    maps = sorted(list(dict.fromkeys(chain.from_iterable(maps)).keys()))
+    with open("map_list/maplist.txt", "w+") as f:
+        f.write("\n".join(maps))

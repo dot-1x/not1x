@@ -10,8 +10,8 @@ from pathlib import Path
 
 import aiomysql
 import pandas
-from enums import MapEnum
 
+from enums import MapEnum
 from logs import setlog
 
 _logger = setlog(__name__)
@@ -58,6 +58,7 @@ CREATE TABLE `not1x`.`server_data` (
 """
 loop = asyncio.get_event_loop()
 
+
 class iterdb:
     def __init__(self, data=t.Union[list, tuple]) -> None:
         self.count = 0
@@ -73,6 +74,7 @@ class iterdb:
         self.count += 1
         return iter
 
+
 class connection:
     def __init__(self) -> None:
         self.cursor: aiomysql.Cursor = None
@@ -84,14 +86,14 @@ class connection:
     async def execute(
         self, query: str, *args, fetch: bool = False, fetchall: bool = False, res: bool = True, commit: bool = False
     ) -> t.Tuple | None:
-        
+
         self.con: aiomysql.Connection = await aiomysql.connect(
-                host=self.__data["host"],
-                port=self.__data["port"],
-                user=self.__data["user"],
-                password=self.__data["password"],
-                db=self.__data["db"],
-            )
+            host=self.__data["host"],
+            port=self.__data["port"],
+            user=self.__data["user"],
+            password=self.__data["password"],
+            db=self.__data["db"],
+        )
         self.cursor: aiomysql.Cursor = await self.con.cursor()
         await self.cursor.execute(query, *args)
         _res = None
@@ -121,12 +123,12 @@ class connection:
             for map in maps:
                 if delete:
                     await self.execute(
-                    "DELETE FROM `user_data` WHERE `notified_maps` = %s AND `userid` = %s",
-                    (str(map), str(userid)),
-                    commit=True,
-                    res=False,
-                    fetch=False,
-                )
+                        "DELETE FROM `user_data` WHERE `notified_maps` = %s AND `userid` = %s",
+                        (str(map), str(userid)),
+                        commit=True,
+                        res=False,
+                        fetch=False,
+                    )
                 else:
                     await self.execute(
                         "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
@@ -232,8 +234,10 @@ class connection:
         else:
             q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
             await self.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date), commit=True)
-            
-        r = await self.execute("SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True)
+
+        r = await self.execute(
+            "SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True
+        )
         if not r:
             q = "INSERT INTO `server_data` (`server_ip`, `last_map`) VALUES (%s, %s)"
             await self.execute(q, (ip, map), commit=True)
@@ -258,5 +262,7 @@ class connection:
         return r
 
     async def getlastmap(self, ip: str) -> t.Union[str, MapEnum.UNKOWN.value]:
-        r = await self.execute("SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True)
+        r = await self.execute(
+            "SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True
+        )
         return list(chain.from_iterable(r))[0] if r else MapEnum.UNKOWN

@@ -1,9 +1,9 @@
 import asyncio
+import ipaddress
+import json
 from concurrent import futures
 from concurrent.futures import Future
 from datetime import datetime
-import ipaddress
-import json
 
 import a2s
 import aiohttp
@@ -34,6 +34,7 @@ def parseflag(content: str):
                 }
                 return _res
 
+
 async def get_location(ip: str) -> dict | None:
     url = f"https://www.gametracker.com/server_info/{ip}"
     _res = {"flag": ":pirate_flag:", "location": "Unknown!"}
@@ -42,7 +43,9 @@ async def get_location(ip: str) -> dict | None:
             if req.status != 200:
                 return _res
             else:
-                _res = await asyncio.get_running_loop().run_in_executor(None, parseflag, (await req.text(encoding="utf-8")))
+                _res = await asyncio.get_running_loop().run_in_executor(
+                    None, parseflag, (await req.text(encoding="utf-8"))
+                )
     return _res
 
 
@@ -128,4 +131,3 @@ async def GetServer(ip: str, port: int):
         status = True
 
     return ServerInfo(ip, port, loc, _server, status)
-    

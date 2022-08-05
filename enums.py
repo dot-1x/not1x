@@ -1,7 +1,8 @@
-from enum import Enum
 import typing
+from enum import Enum
 
 UknownMap = typing.NewType("UnkownMap", str)
+
 
 class Status(Enum):
     OFFLINE = ":red_circle: Offline!"

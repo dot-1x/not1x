@@ -5,3 +5,4 @@ debugs.py
 *.ps1
 serverlist.txt
 server_data.json
+maplist.txt

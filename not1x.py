@@ -110,8 +110,8 @@ class Bot(bridge.Bot):
             self.server_task[_sv] = _task
 
         for task in self.server_task:
-            self.server_task[task].get_task().set_name(task)
             self.server_task[task].start()
+            self.server_task[task].get_task().set_name(task)
 
         self._pl_list_button = True
         _logger.info("loop map task has been started!")

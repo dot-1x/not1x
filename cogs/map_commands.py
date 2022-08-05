@@ -13,7 +13,7 @@ import not1x
 import ui_utils
 from enums import *
 from logs import setlog
-from map_list.findmap import aupdatemap, updatemap
+from map_list.findmap import updatemap
 from source_query import GetServer
 from tasks.map_task import ServerTask
 
@@ -183,37 +183,20 @@ class MapCommands(commands.Cog):
         opt = [discord.SelectOption(label=x, value=x) for x in notify_list]
         await ui_utils.select_ip(ctx, opt)
 
-    @slash_command(description="Update map list (bot owner only)")
+    @slash_command(description="Update map list")
     @commands.cooldown(1, 3600, commands.BucketType.user)
     async def update_map(self, ctx: discord.ApplicationContext):
         if ctx.author.id not in self.bot.owner_ids:
             raise commands.NotOwner(f"{ctx.author.name} invoking updatemap")
-
-        starttime = datetime.now()
-
         await ctx.respond("please wait till i finish updating map list...")
+        await updatemap()
 
-        # self.bot.loop.run_until_complete(await aupdatemap())
-        p = Process(target=updatemap, name="Updatemap")
-        p.start()
-
-        @tasks.loop(seconds=1)
-        async def checkprocess():
-            if p.is_alive():
-                pass
-            else:
-                endtime = datetime.now()
-                await ctx.edit(content=f"Succcessfully updated map list in {endtime-starttime}")
-                checkprocess.stop()
-
-        checkprocess.start()
-
-    @notify.command(description="Notify a map when its played (ZE only)")
+    @notify.command(description="Notify a map when its played")
     async def map(
         self,
         ctx: discord.ApplicationContext,
         *,
-        map: discord.Option(str, description="map name to notify, auto regex, divided by space"),
+        map: discord.Option(str, description="map name to notify, auto find, divided by space, length min 5"),
     ):
         await ctx.defer()
 
@@ -222,6 +205,7 @@ class MapCommands(commands.Cog):
         for _map in map.split(" "):
             _map: str = _map.lower()
             if len(_map) < 5:
+                invalid_map.append(_map)
                 continue
             with open("map_list/maplist.txt") as maps:
                 _maps = maps.read()
@@ -232,11 +216,6 @@ class MapCommands(commands.Cog):
 
         embeds = discord.Embed()
 
-        if len(invalid_map) > 0:
-            embeds.title = "Invalid Maps:"
-            embeds.description = f"\n".join(invalid_map)
-            await ctx.respond(embed=embeds, delete_after=10)
-
         if len(founded_map) < 1:
             await ctx.respond("None map found!")
             return
@@ -244,6 +223,11 @@ class MapCommands(commands.Cog):
         user_notified_maps = await self.bot.db.getnotify(ctx.author.id)
         opt = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
         await ui_utils.select_map(ctx, opt)
+        
+        if len(invalid_map) > 0:
+            embeds.title = "Invalid Maps:"
+            embeds.description = f"\n".join(invalid_map)
+            await ctx.send(embed=embeds, delete_after=10, reference=ctx.message)
 
     @notify.command(name="list", description="Get your notification list")
     async def notify_list(self, ctx: discord.ApplicationContext):

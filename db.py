@@ -78,8 +78,6 @@ class iterdb:
 
 class connection:
     def __init__(self) -> None:
-        self.cursor: aiomysql.Cursor = None
-        self.con: aiomysql.Connection = None
         with open("_debugs/config.json", "r") as f:
             self.__data = json.load(f)
             self.__data = self.__data["database"]
@@ -89,7 +87,7 @@ class connection:
     ) -> t.Tuple | None:
         _res = None
         try:
-            self.con: aiomysql.Connection = await aiomysql.connect(
+            con: aiomysql.Connection = await aiomysql.connect(
                 host=self.__data["host"],
                 port=self.__data["port"],
                 user=self.__data["user"],
@@ -101,18 +99,19 @@ class connection:
         except InterfaceError:
             _logger.critical("Connection to db was closed!")
         else:
-            self.cursor: aiomysql.Cursor = await self.con.cursor()
-            await self.cursor.execute(query, *args)
+            cursor: aiomysql.Cursor = await con.cursor()
+            await cursor.execute(query, *args)
             if fetch:
                 if fetchall:
-                    _res = await self.cursor.fetchall()
+                    _res = await cursor.fetchall()
                 else:
-                    _res = await self.cursor.fetchone()
+                    _res = await cursor.fetchone()
             if commit:
-                await self.con.commit()
+                await con.commit()
             if res:
-                self.con.close()
+                con.close()
                 return _res
+            con.close()
         return _res
 
     async def getnotify(self, userid: int) -> list:

@@ -225,12 +225,14 @@ class MapCommands(commands.Cog):
 
         user_notified_maps = await self.bot.db.getnotify(ctx.author.id)
         opt = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
-        await ui_utils.select_map(ctx, opt)
-
+        if len(opt) > 250:
+            await ctx.respond("More than 250 maps found!")
+            return
         if len(invalid_map) > 0:
             embeds.title = "Invalid Maps:"
             embeds.description = f"\n".join(invalid_map)
-            await ctx.send(embed=embeds, delete_after=10, reference=ctx.message)
+            await ctx.send(embed=embeds, delete_after=10)
+        await ui_utils.select_map(ctx, opt)
 
     @notify.command(name="list", description="Get your notification list")
     async def notify_list(self, ctx: discord.ApplicationContext):

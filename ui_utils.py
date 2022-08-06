@@ -15,6 +15,7 @@ from db import iterdb
 from enums import *
 from logs import setlog
 from source_query import GetServer
+from utils import most_color
 
 if t.TYPE_CHECKING:
     import not1x
@@ -37,7 +38,9 @@ class PlayerListV(discord.ui.View):
             "WeekStats": {"callback": self.weekstats, "label": "Server Stats", "style": discord.ButtonStyle.primary},
         }
         for btn in self.buttons:
-            _btn = discord.ui.Button(label=self.buttons[btn]["label"], style=self.buttons[btn]["style"], custom_id=f"{ip}:{port}:{btn}")
+            _btn = discord.ui.Button(
+                label=self.buttons[btn]["label"], style=self.buttons[btn]["style"], custom_id=f"{ip}:{port}:{btn}"
+            )
             _btn.callback = self.buttons[btn]["callback"]
             self.add_item(_btn)
 
@@ -231,7 +234,9 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
         views.append(ChooseView(ctx.author, _opt, title=f"Select Map {num+1}", val=num))
     page = PageUi(ctx.author, title="Select Page", options=views)
     embed = discord.Embed(
-        title="Please Choose a map to update", color=ctx.author.color, timestamp=discord.utils.utcnow()
+        title="Please Choose a map to update",
+        color=await most_color(ctx.author.avatar),
+        timestamp=discord.utils.utcnow(),
     )
     embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar.url if ctx.author.avatar.url else embed.Empty)
     await ctx.respond(view=page, embed=embed)
@@ -266,7 +271,9 @@ async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectO
         views.append(ChooseView(ctx.author, _opt, title=f"Select IP {num+1}", val=num))
     page = PageUi(ctx.author, title="Select IP", options=views)
     embed = discord.Embed(
-        title="Please Choose an IP to update", color=ctx.author.color, timestamp=discord.utils.utcnow()
+        title="Please Choose an IP to update",
+        color=await most_color(ctx.author.avatar),
+        timestamp=discord.utils.utcnow(),
     )
     embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar.url if ctx.author.avatar.url else embed.Empty)
     await ctx.respond(view=page, embed=embed)

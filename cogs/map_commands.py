@@ -16,6 +16,7 @@ from logs import setlog
 from map_list.findmap import updatemap
 from source_query import GetServer
 from tasks.map_task import ServerTask
+from utils import most_color
 
 _logger = setlog(__name__)
 
@@ -87,6 +88,8 @@ class MapCommands(commands.Cog):
         embed.set_author(name=ctx.guild.name, icon_url=icon.url if icon else embed.Empty)
         embed.title = "Server query list"
         embed.description = "\n".join(notify_list)
+
+        embed.color = await most_color(ctx.guild.icon)
 
         await ctx.respond(embed=embed)
 
@@ -223,7 +226,7 @@ class MapCommands(commands.Cog):
         user_notified_maps = await self.bot.db.getnotify(ctx.author.id)
         opt = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
         await ui_utils.select_map(ctx, opt)
-        
+
         if len(invalid_map) > 0:
             embeds.title = "Invalid Maps:"
             embeds.description = f"\n".join(invalid_map)
@@ -241,7 +244,7 @@ class MapCommands(commands.Cog):
                 discord.Embed(
                     title="Map Notification",
                     description="\n".join(user_notify[x : x + 25]),
-                    color=ctx.author.colour,
+                    color=await most_color(ctx.author.avatar),
                 ).set_author(
                     name=ctx.author.name,
                     icon_url=ctx.author.display_avatar.url if ctx.author.display_avatar else discord.Embed.Empty,

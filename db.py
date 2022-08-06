@@ -10,6 +10,7 @@ from pathlib import Path
 
 import aiomysql
 import pandas
+from pymysql.err import InterfaceError, OperationalError
 
 from enums import MapEnum
 from logs import setlog
@@ -86,28 +87,33 @@ class connection:
     async def execute(
         self, query: str, *args, fetch: bool = False, fetchall: bool = False, res: bool = True, commit: bool = False
     ) -> t.Tuple | None:
-
-        self.con: aiomysql.Connection = await aiomysql.connect(
-            host=self.__data["host"],
-            port=self.__data["port"],
-            user=self.__data["user"],
-            password=self.__data["password"],
-            db=self.__data["db"],
-        )
-        self.cursor: aiomysql.Cursor = await self.con.cursor()
-        await self.cursor.execute(query, *args)
         _res = None
-        if fetch:
-            if fetchall:
-                _res = await self.cursor.fetchall()
-            else:
-                _res = await self.cursor.fetchone()
-        if commit:
-            await self.con.commit()
-        if res:
-            self.con.close()
-            return _res
-        self.con.close()
+        try:
+            self.con: aiomysql.Connection = await aiomysql.connect(
+                host=self.__data["host"],
+                port=self.__data["port"],
+                user=self.__data["user"],
+                password=self.__data["password"],
+                db=self.__data["db"],
+            )
+        except OperationalError:
+            _logger.critical("Failed to connect to db!")
+        except InterfaceError:
+            _logger.critical("Connection to db was closed!")
+        else:
+            self.cursor: aiomysql.Cursor = await self.con.cursor()
+            await self.cursor.execute(query, *args)
+            if fetch:
+                if fetchall:
+                    _res = await self.cursor.fetchall()
+                else:
+                    _res = await self.cursor.fetchone()
+            if commit:
+                await self.con.commit()
+            if res:
+                self.con.close()
+                return _res
+        return _res
 
     async def getnotify(self, userid: int) -> list:
         r = await self.execute(
@@ -263,6 +269,11 @@ class connection:
 
     async def getlastmap(self, ip: str) -> t.Union[str, MapEnum.UNKOWN.value]:
         r = await self.execute(
-            "SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True
+            "SELECT `last_map` FROM `server_data` WHERE `server_ip` = %s",
+            (ip),
+            fetch=True,
+            fetchall=True,
+            res=True,
+            commit=False,
         )
         return list(chain.from_iterable(r))[0] if r else MapEnum.UNKOWN

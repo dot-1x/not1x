@@ -59,7 +59,7 @@ class Bot(bridge.Bot):
 
         self._pl_list_button = False
         self._persiew = {}
-        self.server_task: t.Dict[str, tasks.Loop] = {}
+        self.server_task: t.Dict[str, ServerTask] = {}
 
         self.load_extension_from("cogs")
         # self.load_extension("utils")
@@ -68,19 +68,14 @@ class Bot(bridge.Bot):
         self.data = {}
 
     def run(self):
-        loop = asyncio.get_event_loop()
-        try:
-            loop.run_until_complete(super().start(self.__token))
-        except KeyboardInterrupt:
-            _logger.critical("BOT CLOSED!")
-            loop.run_until_complete(super().close())
-        except RuntimeError:
-            _logger.critical("BOT CLOSED!")
-            loop.run_until_complete(super().close())
-        finally:
-            loop.close()
+        super().run(token=self.__token)
 
-    def map_tasks(self):
+    async def close(self):
+        _logger.critical("Bot Closed!")
+
+        return await super().close()
+
+    async def map_tasks(self):
         _sv_list: t.List[str] = self.config["serverquery"]
         for _sv in _sv_list:
             if not ":" in _sv:
@@ -96,22 +91,19 @@ class Bot(bridge.Bot):
                 self.persview[_sv] = _view
                 self.add_view(_view)
 
-            server = ServerTask(self, _sv, _sv, self.persview[_sv])
+            self.server_task[_sv] = ServerTask(self, _sv, _sv, self.persview[_sv])
 
-            @tasks.loop(seconds=60)
-            async def _task():
+        @tasks.loop(seconds=60)
+        async def _task():
+            for task in self.server_task:
                 try:
-                    await asyncio.wait_for(server.servercheck(), 60)
+                    await asyncio.wait_for(self.server_task[task].servercheck(), timeout=10)
                 except Exception as e:
-                    _logger.error(f"{_sv} task encountered an error: {e}")
                     with open("logs/traceback.log", "a") as f:
                         traceback.print_exc(file=f)
 
-            self.server_task[_sv] = _task
-
-        for task in self.server_task:
-            self.server_task[task].start()
-            self.server_task[task].get_task().set_name(task)
+        _task.start()
+        _task.get_task().set_name("global_loop")
 
         self._pl_list_button = True
         _logger.info("loop map task has been started!")
@@ -142,7 +134,7 @@ class Bot(bridge.Bot):
                 _logger.critical("Failed to load guild from database")
                 self.loop.stop()
 
-        self.map_tasks()
+        await self.map_tasks()
 
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")

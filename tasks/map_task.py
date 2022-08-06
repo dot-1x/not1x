@@ -94,7 +94,6 @@ class ServerTask:
         _st = datetime.now()
 
         self.mapname = await self.bot.db.getlastmap(self.ipport)
-        _logger.debug(self.mapname)
         ip = ip_address(self.ipport.split(":")[0])
         port = int(self.ipport.split(":")[1])
 

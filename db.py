@@ -116,7 +116,7 @@ class connection:
 
     async def getnotify(self, userid: int) -> list:
         r = await self.execute(
-            "SELECT notified_maps FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
+            "SELECT notified_maps FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=True, res=True
         )
         return list(chain.from_iterable(r)) if r else []
 

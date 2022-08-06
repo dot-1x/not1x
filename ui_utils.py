@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import typing as t
 from datetime import datetime
@@ -149,7 +150,7 @@ class Confirm(discord.ui.View):
         self.author = author
         self.cancel = True
         super().__init__(timeout=timeout)
-
+        
     @discord.ui.button(label="CONFIRM", style=discord.ButtonStyle.green)
     async def _confirm(self, _select, _interact: discord.Interaction):
         if self.author != _interact.user:
@@ -189,7 +190,7 @@ class ChooseView(discord.ui.Select["PageUi"]):
 
 
 class PageUi(discord.ui.View):
-    def __init__(self, author: discord.Member, title: str, options: t.List[ChooseView], timeout: float = 60) -> None:
+    def __init__(self, author: discord.Member, title: str, options: t.List[ChooseView], timeout: float = 180) -> None:
         super().__init__(timeout=timeout)
         self.author = author
         self.options = options
@@ -243,11 +244,12 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
 
     _c = Confirm(ctx.author, 60)
 
-    await ctx.followup.send(content="Press Confirm to update current notification list", view=_c, ephemeral=True)
+    _confirm = await ctx.respond(content="Press Confirm to update current notification list", view=_c, ephemeral=True)
     await _c.wait()
 
     page.disable_all_items()
-
+    _c.disable_all_items()
+    
     selected = list(chain.from_iterable([v for v in page.selected.values()]))
     embed.title = "Selected Map" if len(selected) > 1 else "No map were selected!"
 
@@ -259,6 +261,7 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
         embed.description = embed.Empty
 
     await ctx.edit(view=page, embed=embed)
+    await _confirm.edit(view=_c)
 
     page.stop()
 
@@ -280,21 +283,24 @@ async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectO
 
     _c = Confirm(ctx.author, 60)
 
-    await ctx.followup.send(content="Press Confirm to update selected IP from guild", view=_c, ephemeral=True)
+    _confirm = await ctx.respond(content="Press Confirm to update selected IP from guild", view=_c, ephemeral=True)
     await _c.wait()
 
     page.disable_all_items()
+    _c.disable_all_items()
 
     selected = list(chain.from_iterable([v for v in page.selected.values()]))
     embed.title = "Selected IP" if len(selected) > 1 else "No IP were selected!"
 
     embed.description = "\n".join([a for a in selected])
     if not _c.cancel and len(selected) > 0:
-        _logger.info(selected)
+        for ip in selected:
+            await asyncio.wait_for(bot.db.deletetracking(ctx.guild.id, ip))
     if _c.cancel:
         embed.title = "Option Canceled!"
         embed.description = embed.Empty
 
     await ctx.edit(view=page, embed=embed)
+    await _confirm.edit(view=_c)
 
     page.stop()

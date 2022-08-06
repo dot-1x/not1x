@@ -117,12 +117,12 @@ class ServerTask:
             else:
                 await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)
 
-            self._maptime = _st
-            self.playedtime = round(datetime.now().timestamp())
             self._notif = False
             self.mapname = server_info.maps
             self._players.clear()
 
+        self.playedtime = round(await self.bot.db.getlastmaptime(self.ipport))
+        self._maptime = datetime.fromtimestamp(self.playedtime)
         self._players.append(server_info.player)
         _sumplayers = sum(self._players)
         await self.bot.db.updateplayers(

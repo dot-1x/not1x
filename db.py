@@ -212,6 +212,13 @@ class connection:
             commit=True,
         )
 
+    async def deletetracking(self, guild_id: int, tracking_ip: str):
+        await self.execute(
+            "DELETE FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s",
+            (guild_id, tracking_ip),
+            commit=True
+        )
+
     async def gettracking(self, guild: int, ip: str = None) -> t.List[IPv4Address]:
         if ip:
             r = await self.execute(
@@ -250,6 +257,17 @@ class connection:
         else:
             q = "UPDATE `server_data` SET `last_map` = %s WHERE `server_ip` = %s"
             await self.execute(q, (map, ip), commit=True)
+
+    async def getlastmaptime(self, ip: str):
+        r = await self.execute(
+            "SELECT `time_play` FROM `server_data` WHERE `server_ip` = %s",
+            (ip),
+            fetch=True,
+            fetchall=True,
+            res=True,
+            commit=False,
+        )
+        return list(chain.from_iterable(r))[0].timestamp() if r else datetime.now().timestamp()
 
     async def updateplayers(self, ip: str, map: str, date: datetime, player: int):
         q = "UPDATE `server_info` SET `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"

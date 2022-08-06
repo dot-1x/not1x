@@ -248,15 +248,14 @@ class connection:
             q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
             await self.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date), commit=True)
 
-        r = await self.execute(
-            "SELECT last_map FROM `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True
-        )
-        if not r:
-            q = "INSERT INTO `server_data` (`server_ip`, `last_map`) VALUES (%s, %s)"
-            await self.execute(q, (ip, map), commit=True)
-        else:
-            q = "UPDATE `server_data` SET `last_map` = %s WHERE `server_ip` = %s"
-            await self.execute(q, (map, ip), commit=True)
+    async def updatelastmap(self, ip: str, newmap: str, lastmap: str):
+        r = await self.execute("SELECT `last_map` from `server_data` WHERE `server_ip` = %s", ip)
+        if r:
+            q = "DELETE FROM `server_data` WHERE `server_ip` = %s AND `last_map` = %s"
+            await self.execute(q, (ip, lastmap), commit=True)
+
+        q = "INSERT INTO `server_data` (`server_ip`, `last_map`) VALUES (%s, %s)"
+        await self.execute(q, (ip, newmap), commit=True)
 
     async def getlastmaptime(self, ip: str):
         r = await self.execute(

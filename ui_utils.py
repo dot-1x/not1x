@@ -295,7 +295,7 @@ async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectO
     embed.description = "\n".join([a for a in selected])
     if not _c.cancel and len(selected) > 0:
         for ip in selected:
-            await asyncio.wait_for(bot.db.deletetracking(ctx.guild.id, ip))
+            await bot.db.deletetracking(ctx.guild.id, ip)
     if _c.cancel:
         embed.title = "Option Canceled!"
         embed.description = embed.Empty

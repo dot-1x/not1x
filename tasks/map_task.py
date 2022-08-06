@@ -8,6 +8,7 @@ from datetime import datetime
 from ipaddress import ip_address
 
 import discord
+import numpy as np
 
 from enums import *
 from logs import setlog
@@ -44,7 +45,7 @@ class ServerTask:
         self._retries = 0
         self._view = view
 
-        self._players = []
+        self._players = [0]
 
         self._maptime = datetime.now()
 
@@ -104,18 +105,19 @@ class ServerTask:
         date_now = _st.strftime("%Y-%m-%d")
         if self.mapname != server_info.maps and server_info.status:
             if self.mapname != MapEnum.UNKOWN:
-                self._maptime = _st - self._maptime
-                _sumplayers = sum(self._players)
+                time = _st - self._maptime
                 await self.bot.db.updateserver(  # update old map to db
                     self.ipport,
                     self.mapname,
                     date_now,
-                    round(self._maptime.seconds / 60),
-                    round(_sumplayers / len(self._players) if _sumplayers else 0),
+                    round(time.seconds / 60),
+                    round(np.average(self._players)),
                 )
                 await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
+                await self.bot.db.updatelastmap(self.ipport, server_info.maps, self.mapname)
             else:
                 await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)
+                await self.bot.db.updatelastmap(self.ipport, server_info.maps, self.mapname)
 
             self._notif = False
             self.mapname = server_info.maps
@@ -124,9 +126,8 @@ class ServerTask:
         self.playedtime = round(await self.bot.db.getlastmaptime(self.ipport))
         self._maptime = datetime.fromtimestamp(self.playedtime)
         self._players.append(server_info.player)
-        _sumplayers = sum(self._players)
         await self.bot.db.updateplayers(
-            self.ipport, self.mapname, date_now, round(_sumplayers / len(self._players) if _sumplayers else 0)
+            self.ipport, self.mapname, date_now, round(np.average(self._players))
         )
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
@@ -146,8 +147,7 @@ class ServerTask:
                 notif = await self.bot.db.getnotify(userid)
                 if not _user:
                     continue
-
-                self.bot.loop.run_in_executor(None, self.notifyuser, (_user, userid, server_info, notif))
+                await asyncio.wait_for(self.notifyuser(_user, userid, server_info, notif), timeout=30)
 
         async for _, guild, channel, tracking_ip, message in await self.bot.db.fetchip(self.ipport):
             channel: discord.TextChannel = self.bot.get_channel(channel)

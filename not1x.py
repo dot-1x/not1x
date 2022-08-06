@@ -98,7 +98,12 @@ class Bot(bridge.Bot):
             for task in self.server_task:
                 try:
                     await asyncio.wait_for(self.server_task[task].servercheck(), timeout=10)
+                except asyncio.TimeoutError:
+                    _logger.error(f"Task {task} timed out")
+                except asyncio.CancelledError:
+                    _logger.error(f"Task {task} got cancelled")
                 except Exception as e:
+                    _logger.error(f"Task {task} encountered an error {str(e)}")
                     with open("logs/traceback.log", "a") as f:
                         traceback.print_exc(file=f)
 

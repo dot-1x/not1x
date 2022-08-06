@@ -126,9 +126,7 @@ class ServerTask:
         self.playedtime = round(await self.bot.db.getlastmaptime(self.ipport))
         self._maptime = datetime.fromtimestamp(self.playedtime)
         self._players.append(server_info.player)
-        await self.bot.db.updateplayers(
-            self.ipport, self.mapname, date_now, round(np.average(self._players))
-        )
+        await self.bot.db.updateplayers(self.ipport, self.mapname, date_now, round(np.average(self._players)))
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
 

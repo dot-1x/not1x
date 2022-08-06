@@ -150,7 +150,7 @@ class Confirm(discord.ui.View):
         self.author = author
         self.cancel = True
         super().__init__(timeout=timeout)
-        
+
     @discord.ui.button(label="CONFIRM", style=discord.ButtonStyle.green)
     async def _confirm(self, _select, _interact: discord.Interaction):
         if self.author != _interact.user:
@@ -249,7 +249,7 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
 
     page.disable_all_items()
     _c.disable_all_items()
-    
+
     selected = list(chain.from_iterable([v for v in page.selected.values()]))
     embed.title = "Selected Map" if len(selected) > 1 else "No map were selected!"
 

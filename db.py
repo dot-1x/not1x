@@ -216,7 +216,7 @@ class connection:
         await self.execute(
             "DELETE FROM `guild_tracking` WHERE `guild_id` = %s AND `tracking_ip` = %s",
             (guild_id, tracking_ip),
-            commit=True
+            commit=True,
         )
 
     async def gettracking(self, guild: int, ip: str = None) -> t.List[IPv4Address]:

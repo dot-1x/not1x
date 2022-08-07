@@ -18,7 +18,7 @@ from enums import *
 from logs import setlog
 from tasks.map_task import ServerTask
 
-__version__ = "0.6"
+__version__ = "0.6r1"
 
 _logger = setlog(__name__)
 

@@ -125,7 +125,7 @@ class connection:
             "SELECT userid FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
         )
         if r:
-            for map in maps:
+            async for map in iterdb(maps):
                 if delete:
                     await self.execute(
                         "DELETE FROM `user_data` WHERE `notified_maps` = %s AND `userid` = %s",
@@ -144,7 +144,7 @@ class connection:
                     )
             _logger.info(f"Successfully updated notify for {name}")
         else:
-            for map in maps:
+            async for map in iterdb(maps):
                 await self.execute(
                     "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
                     (str(userid), str(name), str(map)),

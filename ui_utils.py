@@ -186,6 +186,9 @@ class ChooseView(discord.ui.Select["PageUi"]):
         super().__init__(placeholder=title, min_values=0, max_values=len(self.opt_), options=self.opt_)
 
     async def callback(self, interaction: discord.Interaction):
+        if interaction.user != self.author:
+            interaction.response.send_message("This is not for you!")
+            return
         await interaction.response.send_message(content=f"Selected items: {sorted(self.values)}", ephemeral=True)
         self.view.selected[f"Select{self.value}"] = self.values
 
@@ -204,6 +207,9 @@ class PageUi(discord.ui.View):
         self.add_item(self.select)
 
     async def select_callback(self, interact: discord.Interaction):
+        if interact.user != self.author:
+            interact.response.send_message("This is not for you!")
+            return
         _selected: ChooseView = self.options[int(self.select.values[0])]
         self.clear_items()
         self.add_item(self.select)
@@ -248,11 +254,9 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
     _confirm = await ctx.respond(content="Press Confirm to update current notification list", view=_c, ephemeral=True)
     await _c.wait()
 
-    page.disable_all_items()
-    _c.disable_all_items()
 
     selected = list(chain.from_iterable([v for v in page.selected.values()]))
-    embed.title = "Selected Map" if len(selected) > 1 else "No map were selected!"
+    embed.title = "Selected Map" if len(selected) > 0 else "No map were selected!"
 
     embed.description = "\n".join([a for a in selected])
     if not _c.cancel and len(selected) > 0:
@@ -261,10 +265,9 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
         embed.title = "Option Canceled!"
         embed.description = embed.Empty
 
-    await ctx.edit(view=page, embed=embed)
-    await _confirm.edit(view=_c)
-
     page.stop()
+    page.disable_all_items()
+    await ctx.edit(view=page, embed=embed)
 
 
 async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectOption], edit: bool = False):
@@ -287,11 +290,8 @@ async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectO
     _confirm = await ctx.respond(content="Press Confirm to update selected IP from guild", view=_c, ephemeral=True)
     await _c.wait()
 
-    page.disable_all_items()
-    _c.disable_all_items()
-
     selected = list(chain.from_iterable([v for v in page.selected.values()]))
-    embed.title = "Selected IP" if len(selected) > 1 else "No IP were selected!"
+    embed.title = "Selected IP" if len(selected) > 0 else "No IP were selected!"
 
     embed.description = "\n".join([a for a in selected])
     if not _c.cancel and len(selected) > 0:
@@ -301,7 +301,6 @@ async def select_ip(ctx: discord.ApplicationContext, opt: t.List[discord.SelectO
         embed.title = "Option Canceled!"
         embed.description = embed.Empty
 
-    await ctx.edit(view=page, embed=embed)
-    await _confirm.edit(view=_c)
-
+    page.disable_all_items()
     page.stop()
+    await ctx.edit(view=page, embed=embed)

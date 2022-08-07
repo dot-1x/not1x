@@ -46,10 +46,11 @@ class PlayerListV(discord.ui.View):
             self.add_item(_btn)
 
     async def sendplayer(self, _interaction: discord.Interaction):
+        await _interaction.response.defer(ephemeral=True)
         _sv = await GetServer(self.ip, self.port)
         _pl = await _sv.players()
         if not len(_pl):
-            await _interaction.response.send_message("Server doesn't respond or no players online", ephemeral=True)
+            await _interaction.followup.send(content="Server doesn't respond or no players online", ephemeral=True)
             return
 
         _logger.info(f"Sending player list {_sv.ip_port} to {_interaction.user}")
@@ -59,11 +60,11 @@ class PlayerListV(discord.ui.View):
         try:
             await _interaction.user.send(content=f"**{_sv.name}** ({len(_pl)}/{_sv.maxplayers})\n```{_players}```")
         except discord.Forbidden:
-            await _interaction.response.send_message("i cant send the players on private message", ephemeral=True)
+            await _interaction.followup.send(content="i cant send the players on private message", ephemeral=True)
         except Exception as e:
             _logger.warning(e)
         else:
-            await _interaction.response.send_message("Player list send to private message", ephemeral=True)
+            await _interaction.followup.send(content="Player list send to private message", ephemeral=True)
 
     async def sendstats(self, _interaction: discord.Interaction):
         await _interaction.response.defer(ephemeral=True)

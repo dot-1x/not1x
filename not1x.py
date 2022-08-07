@@ -59,7 +59,7 @@ class Bot(bridge.Bot):
 
         self._pl_list_button = False
         self._persiew = {}
-        self.server_task: t.Dict[str, ServerTask] = {}
+        self.server_task: t.Dict[str, tasks.Loop] = {}
 
         self.load_extension_from("cogs")
         # self.load_extension("utils")
@@ -90,25 +90,20 @@ class Bot(bridge.Bot):
                 _view = ui_utils.PlayerListV(self, _sv.split(":")[0], _sv.split(":")[1])
                 self.persview[_sv] = _view
                 self.add_view(_view)
-
-            self.server_task[_sv] = ServerTask(self, _sv, _sv, self.persview[_sv])
-
-        @tasks.loop(seconds=60)
-        async def _task():
-            for task in self.server_task:
-                try:
-                    await asyncio.wait_for(self.server_task[task].servercheck(), timeout=10)
-                except asyncio.TimeoutError:
-                    _logger.error(f"Task {task} timed out")
-                except asyncio.CancelledError:
-                    _logger.error(f"Task {task} got cancelled")
-                except Exception as e:
-                    _logger.error(f"Task {task} encountered an error {str(e)}")
-                    with open("logs/traceback.log", "a") as f:
-                        traceback.print_exc(file=f)
-
-        _task.start()
-        _task.get_task().set_name("global_loop")
+            sv = ServerTask(self, _sv, _sv, self.persview[_sv])
+            self.server_task[_sv] = tasks.Loop(
+                sv.servercheck,
+                60,
+                discord.MISSING,
+                discord.MISSING,
+                time=discord.MISSING,
+                count=None,
+                loop=self.loop,
+                reconnect=True,
+            )
+        for task in self.server_task:
+            self.server_task[task].start()
+            self.server_task[task].get_task().set_name(task)
 
         self._pl_list_button = True
         _logger.info("loop map task has been started!")

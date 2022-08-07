@@ -114,10 +114,10 @@ class ServerTask:
                     round(np.average(self._players)),
                 )
                 await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
-                await self.bot.db.updatelastmap(self.ipport, server_info.maps, self.mapname)
+                await self.bot.db.updatelastmap(self.ipport, server_info.maps, round(_st.timestamp()))
             else:
                 await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)
-                await self.bot.db.updatelastmap(self.ipport, server_info.maps, self.mapname)
+                await self.bot.db.updatelastmap(self.ipport, server_info.maps, round(_st.timestamp()))
 
             self._notif = False
             self.mapname = server_info.maps

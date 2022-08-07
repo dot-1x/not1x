@@ -247,14 +247,16 @@ class connection:
             q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
             await self.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date), commit=True)
 
-    async def updatelastmap(self, ip: str, newmap: str, lastmap: str):
-        r = await self.execute("SELECT `last_map` from `server_data` WHERE `server_ip` = %s", ip)
+    async def updatelastmap(self, ip: str, newmap: str, timeplay: int):
+        r = await self.execute(
+            "SELECT `last_map` from `server_data` WHERE `server_ip` = %s", (ip), fetch=True, fetchall=True
+        )
         if r:
-            q = "DELETE FROM `server_data` WHERE `server_ip` = %s AND `last_map` = %s"
-            await self.execute(q, (ip, lastmap), commit=True)
-
-        q = "INSERT INTO `server_data` (`server_ip`, `last_map`) VALUES (%s, %s)"
-        await self.execute(q, (ip, newmap), commit=True)
+            q = "UPDATE `server_data` SET `last_map` = %s, `time_play` = %s WHERE `server_ip` = %s"
+            await self.execute(q, (newmap, timeplay, ip), commit=True)
+        else:
+            q = "INSERT INTO `server_data` (`server_ip`, `last_map`, `time_play`) VALUES (%s, %s, %s)"
+            await self.execute(q, (ip, newmap, timeplay), commit=True)
 
     async def getlastmaptime(self, ip: str):
         r = await self.execute(
@@ -265,7 +267,7 @@ class connection:
             res=True,
             commit=False,
         )
-        return list(chain.from_iterable(r))[0].timestamp() if r else datetime.now().timestamp()
+        return list(chain.from_iterable(r))[0] if r else datetime.now().timestamp()
 
     async def updateplayers(self, ip: str, map: str, date: datetime, player: int):
         q = "UPDATE `server_info` SET `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"

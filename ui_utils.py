@@ -119,11 +119,10 @@ class PlayerListV(discord.ui.View):
             index=None,
         )
         df = df.sort_values("Play_Time", ascending=False)
-        stringdata = f"""
-        +++++ Playtime is in minutes, Date are UTC+0 +++++\n\n 
-        Server IP: {self.ipport}\n 
-        Total Average Players: {np.average(total_average).__round__()}\n
-        """ + df.to_string()
+        stringdata = (
+            f"Playtime is in minutes, Date are UTC+0\n\nServer IP: {self.ipport}\nTotal Average Players: {np.average(total_average).__round__()}\nSorted By Most PlayTime\n"
+            + df.to_string()
+        )
         b = io.BytesIO(bytes(stringdata, "utf-8"))
         file = discord.File(b, self.ipport + ".txt")
         try:

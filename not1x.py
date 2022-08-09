@@ -52,7 +52,7 @@ class Bot(bridge.Bot):
         _logger.info(f"Version: {__version__}")
 
         self._pl_list_button = False
-        self._persiew = {}
+        self._persiew: t.Dict[str, ui_utils.PlayerListV] = {}
         self.server_task: t.Dict[str, tasks.Loop] = {}
 
         self.load_extension_from("cogs")

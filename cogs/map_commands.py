@@ -159,8 +159,9 @@ class MapCommands(commands.Cog):
         if ipport not in _sv_list:
             _v = ui_utils.PlayerListV(bot=self.bot, ip=str(ip), port=port)
             self.bot.persview[ipport] = _v
+            self.bot.add_view(_v)
 
-            loop = ServerTask(
+            sv = ServerTask(
                 bot=self.bot,
                 name=ipport,
                 ipport=ipport,
@@ -170,6 +171,18 @@ class MapCommands(commands.Cog):
             _sv_list.append(ipport)
             with open(self.bot.config["path"], "w") as w:
                 json.dump(self.bot.config, w)
+            self.bot.server_task[ipport] = tasks.Loop(
+                sv.servercheck,
+                60,
+                discord.MISSING,
+                discord.MISSING,
+                time=discord.MISSING,
+                count=None,
+                loop=self.bot.loop,
+                reconnect=True,
+            )
+            self.bot.server_task[ipport].start()
+            self.bot.server_task[ipport].get_task().set_name(ipport)
             _logger.info(f"Added new server '{ipport}' to map task")
 
         await ctx.respond(f"Successfully added **{serverstatus.name}** to map tracking")

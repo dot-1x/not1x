@@ -39,13 +39,7 @@ class Bot(bridge.Bot):
         self.help = CustomHelp()
         self.config = config
         self.__token = token
-        intent = discord.Intents(
-            guild_messages=True,
-            guilds=True,
-            members=True,
-            messages=True,
-            presences=True
-        )
+        intent = discord.Intents(guild_messages=True, guilds=True, members=True, messages=True, presences=True)
 
         super().__init__(
             command_prefix=self.prefix,

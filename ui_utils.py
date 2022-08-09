@@ -8,15 +8,14 @@ from ipaddress import ip_address
 from itertools import chain
 
 import discord
-import pandas as pd
 import numpy as np
-from discord.ext import commands, pages
+import pandas as pd
 
 from db import iterdb
 from enums import *
 from logs import setlog
 from source_query import GetServer
-from utils import most_color
+from utils import most_color, parse_history
 
 if t.TYPE_CHECKING:
     import not1x
@@ -75,22 +74,24 @@ class PlayerListV(discord.ui.View):
         em = discord.Embed()
         em.title = _sv.name
         em.color = discord.Color.blurple()
-        lim = 0
-        total_average = []
-        async for _, ip, map, date, lastplayed, playtime, played, avg_player in iterdb(
-            sorted(await self.bot.db.fetchserverdata(self.ipport), key=lambda x: x[4], reverse=True)
-        ):
-            if lim > 24:
-                break
+
+        data = await self.bot.db.fetchserverdata(self.ipport)
+
+        def sort():
+            return sorted(data, key=lambda x: x[4], reverse=True)
+
+        data = await self.bot.loop.run_in_executor(None, sort)
+        data = data[:24]
+
+        listed = list(parse_history(data))
+        for l in listed:
             em.add_field(
                 name=map,
-                value=f"Last Played: <t:{round(lastplayed.timestamp())}>\nAverage Players: {avg_player}\nPlayed: {played if played else 1} time(s)\nPlaytime: {playtime} minute(s)",
+                value=f"Last Played: <t:{round(l['Last_Played'].timestamp())}>\nAverage Players: {l['Average_Player']}\nPlayed: {l['Played']} time(s)\nPlaytime: {l['Play_Time']} minute(s)",
                 inline=True,
             )
-            total_average.append(avg_player)
-            lim += 1
-        em.description = "Total average player(s): " + str(sum(total_average) / len(total_average))
-        em.set_footer(text="Note: map playtime stats is generated after map finished playing!")
+        total_average = [a["Average_Player"] for a in listed]
+        em.description = f"Total average player(s): + {np.average(total_average)}"
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:
@@ -103,43 +104,24 @@ class PlayerListV(discord.ui.View):
 
     async def weekstats(self, _interaction: discord.Interaction):
         await _interaction.response.defer(ephemeral=True)
-        x = await self.bot.db.fetchserverdata(self.ipport)
-        def sortday():
-            return [a for a in x if (datetime.now() - a[4]).days < 7]
-        x = await self.bot.loop.run_in_executor(None, sortday)
+        data = await self.bot.db.fetchserverdata(self.ipport)
 
-        data: t.Dict[str, ServerHistory] = {}
-        for _, ip, Maps, TimePlayed, LastPlayed, PlayTime, Played, AveragePlayers in x:
-            if Maps not in data:
-                data[Maps] = {
-                    "Map": Maps,
-                    "Play_Time": PlayTime,
-                    "Played": Played,
-                    "Average_Player": [AveragePlayers],
-                    "Last_Played": LastPlayed,
-                }
-            else:
-                if data[Maps]["Last_Played"] < LastPlayed:
-                    data[Maps]["Last_Played"] = LastPlayed
-                data[Maps]["Play_Time"] += PlayTime
-                data[Maps]["Played"] += Played
-                data[Maps]["Average_Player"].append(AveragePlayers)
-        listed = []
-        total_average = []
-        for k in data:
-            total = np.average(data[k]["Average_Player"])
-            total_average.append(total)
-            data[k]["Average_Player"]: int = total
-            listed.append(tuple(data[k].values()))
+        def sortday():
+            return [a for a in data if (datetime.now() - a[4]).days < 7]
+
+        data = await self.bot.loop.run_in_executor(None, sortday)
+
+        listed = list(parse_history(data))
+        total_average = [a["Average_Player"] for a in listed]
 
         df = pd.DataFrame(
             listed,
             columns=("Maps", "Time Played (minutes)", "Played time", "Average Players", "Last Played (UTC+0)"),
-            index=None
+            index=None,
         )
         df = df.sort_values("Time Played (minutes)", ascending=False)
         s = pd.Series([self.ipport, np.average(total_average).__round__()], index=["Server Ip", "Total Average Player"])
-        b = io.BytesIO(bytes(s.to_string()+"\n"+df.to_string(), "utf-8"))
+        b = io.BytesIO(bytes(s.to_string() + "\n" + df.to_string(), "utf-8"))
         file = discord.File(b, self.ipport + ".txt")
         try:
             await _interaction.user.send(content="**Note: Data is not 100% accurate**", file=file)
@@ -264,7 +246,6 @@ async def select_map(ctx: discord.ApplicationContext, opt: t.List[discord.Select
 
     _confirm = await ctx.respond(content="Press Confirm to update current notification list", view=_c, ephemeral=True)
     await _c.wait()
-
 
     selected = list(chain.from_iterable([v for v in page.selected.values()]))
     embed.title = "Selected Map" if len(selected) > 0 else "No map were selected!"

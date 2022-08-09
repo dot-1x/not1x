@@ -1,7 +1,5 @@
 import asyncio
-import io
 import json
-import os
 import typing as t
 from datetime import datetime
 from ipaddress import IPv4Address
@@ -232,18 +230,12 @@ class connection:
         return [_r for _r in rs if _r != "0"] if r else []
 
     async def updateserver(self, ip: str, map: str, date: datetime, playtime: int = 0, average_players: int = 0):
-        r = await self.execute(
-            "SELECT `playtime`, `played` FROM `server_info` WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s",
-            (ip, map, date),
-            fetch=True,
-            fetchall=False,
-        )
-        if not r:
-            q = "INSERT INTO `server_info` (`tracking_ip`, `map`, `date`, `playtime`, `played`, `average_players`) VALUES (%s, %s, %s, %s, %s, %s)"
-            await self.execute(q, (ip, map, date, playtime, 0, average_players), commit=True)
-        else:
-            q = "UPDATE `server_info` SET `playtime` = %s, `played` = %s, `average_players` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
-            await self.execute(q, (r[0] + playtime, r[1] + 1, average_players, ip, map, date), commit=True)
+        q = "INSERT INTO `server_info` (`tracking_ip`, `map`, `date`, `playtime`, `played`, `average_players`) VALUES (%s, %s, %s, %s, %s, %s)"
+        await self.execute(q, (ip, map, date, playtime, 1, average_players), commit=True)
+
+    async def updatemaptime(self, ip: str, map: str, date: datetime, playtime: int = 0):
+        q = "UPDATE `server_info` SET `playtime` = %s WHERE `tracking_ip` = %s AND `map` = %s AND `date` = %s"
+        await self.execute(q, (playtime, ip, map, date), commit=True)
 
     async def updatelastmap(self, ip: str, newmap: str, timeplay: int):
         r = await self.execute(

@@ -104,20 +104,9 @@ class ServerTask:
 
         date_now = _st.strftime("%Y-%m-%d")
         if self.mapname != server_info.maps and server_info.status:
-            if self.mapname != MapEnum.UNKOWN:
-                time = _st - self._maptime
-                await self.bot.db.updateserver(  # update old map to db
-                    self.ipport,
-                    self.mapname,
-                    date_now,
-                    round(time.seconds / 60),
-                    round(np.average(self._players)),
-                )
-                await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)  # update new maps to db
-                await self.bot.db.updatelastmap(self.ipport, server_info.maps, round(_st.timestamp()))
-            else:
-                await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)
-                await self.bot.db.updatelastmap(self.ipport, server_info.maps, round(_st.timestamp()))
+
+            await self.bot.db.updateserver(self.ipport, server_info.maps, date_now)
+            await self.bot.db.updatelastmap(self.ipport, server_info.maps, round(_st.timestamp()))
 
             self._notif = False
             self.mapname = server_info.maps
@@ -127,6 +116,7 @@ class ServerTask:
         self._maptime = datetime.fromtimestamp(self.playedtime)
         self._players.append(server_info.player)
         await self.bot.db.updateplayers(self.ipport, self.mapname, date_now, round(np.average(self._players)))
+        await self.bot.db.updatemaptime(self.ipport, self.mapname, date_now, (_st - self._maptime).seconds / 60)
 
         server_info.add_field(name="Map played: ", value=f"<t:{self.playedtime}:R>", inline=False)
 

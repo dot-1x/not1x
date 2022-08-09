@@ -1,6 +1,7 @@
 import asyncio
 import ipaddress
 import json
+import typing as t
 from concurrent import futures
 from concurrent.futures import Future
 from datetime import datetime
@@ -107,11 +108,10 @@ class ServerInfo(discord.Embed):
     def player(self):
         return self.__sv.player_count
 
-    async def players(self):
+    async def players(self) -> t.List[a2s.Player]:
         try:
             return await a2s.aplayers((str(self.ip_port[0]), self.ip_port[1]), timeout=1)
         except Exception as e:
-            # _logger.warning(f"Failed to get {self.ip_port} player list\n" + str(e))
             return []
 
 

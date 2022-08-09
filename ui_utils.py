@@ -86,12 +86,12 @@ class PlayerListV(discord.ui.View):
         listed = list(parse_history(data))
         for l in listed:
             em.add_field(
-                name=map,
+                name=l["Map"],
                 value=f"Last Played: <t:{round(l['Last_Played'].timestamp())}>\nAverage Players: {l['Average_Player']}\nPlayed: {l['Played']} time(s)\nPlaytime: {l['Play_Time']} minute(s)",
                 inline=True,
             )
         total_average = [a["Average_Player"] for a in listed]
-        em.description = f"Total average player(s): + {np.average(total_average)}"
+        em.description = f"Total average player(s): {np.average(total_average)}"
         try:
             await _interaction.user.send(embed=em)
         except discord.Forbidden:
@@ -116,12 +116,15 @@ class PlayerListV(discord.ui.View):
 
         df = pd.DataFrame(
             listed,
-            columns=("Maps", "Time Played (minutes)", "Played time", "Average Players", "Last Played (UTC+0)"),
             index=None,
         )
-        df = df.sort_values("Time Played (minutes)", ascending=False)
-        s = pd.Series([self.ipport, np.average(total_average).__round__()], index=["Server Ip", "Total Average Player"])
-        b = io.BytesIO(bytes(s.to_string() + "\n" + df.to_string(), "utf-8"))
+        df = df.sort_values("Play_Time", ascending=False)
+        stringdata = f"""
+        +++++ Playtime is in minutes, Date are UTC+0 +++++\n\n 
+        Server IP: {self.ipport}\n 
+        Total Average Players: {np.average(total_average).__round__()}\n
+        """ + df.to_string()
+        b = io.BytesIO(bytes(stringdata, "utf-8"))
         file = discord.File(b, self.ipport + ".txt")
         try:
             await _interaction.user.send(content="**Note: Data is not 100% accurate**", file=file)

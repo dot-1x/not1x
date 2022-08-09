@@ -103,11 +103,11 @@ class PlayerListV(discord.ui.View):
 
     async def weekstats(self, _interaction: discord.Interaction):
         await _interaction.response.defer(ephemeral=True)
-        x = await self.bot.db.fetchserverdata("51.79.162.166:27015")
+        x = await self.bot.db.fetchserverdata(self.ipport)
         def sortday():
             return [a for a in x if (datetime.now() - a[4]).days < 7]
         x = await self.bot.loop.run_in_executor(None, sortday)
-        
+
         data: t.Dict[str, ServerHistory] = {}
         for _, ip, Maps, TimePlayed, LastPlayed, PlayTime, Played, AveragePlayers in x:
             if Maps not in data:

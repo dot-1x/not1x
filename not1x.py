@@ -40,11 +40,11 @@ class Bot(bridge.Bot):
         self.config = config
         self.__token = token
         intent = discord.Intents(
-            message_content=True,
             guild_messages=True,
             guilds=True,
             members=True,
             messages=True,
+            presences=True
         )
 
         super().__init__(

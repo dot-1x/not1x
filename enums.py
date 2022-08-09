@@ -1,7 +1,8 @@
-import typing
+import typing as t
 from enum import Enum
+from datetime import datetime
 
-UknownMap = typing.NewType("UnkownMap", str)
+UknownMap = t.NewType("UnkownMap", str)
 
 
 class Status(Enum):
@@ -22,3 +23,12 @@ class Data(Enum):
 
 class MapEnum(Enum):
     UNKOWN = UknownMap
+
+
+class ServerHistory(t.TypedDict):
+    Ip: str
+    Map: str
+    Play_Time: int
+    Played: int
+    Average_Player: t.List[int]
+    Last_Played: datetime

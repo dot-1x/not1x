@@ -9,8 +9,8 @@ from itertools import chain
 
 import discord
 import pandas as pd
+import numpy as np
 from discord.ext import commands, pages
-from numpy import place
 
 from db import iterdb
 from enums import *
@@ -103,15 +103,15 @@ class PlayerListV(discord.ui.View):
 
     async def weekstats(self, _interaction: discord.Interaction):
         await _interaction.response.defer(ephemeral=True)
-        x = await self.bot.db.fetchserverdata(self.ipport)
-        x = [a for a in x if (datetime.now() - a[4]).days < 7]
-        data = {}
+        x = await self.bot.db.fetchserverdata("51.79.162.166:27015")
+        def sortday():
+            return [a for a in x if (datetime.now() - a[4]).days < 7]
+        x = await self.bot.loop.run_in_executor(None, sortday)
+        
+        data: t.Dict[str, ServerHistory] = {}
         for _, ip, Maps, TimePlayed, LastPlayed, PlayTime, Played, AveragePlayers in x:
-            if ip not in data:
-                data[ip] = {}
-            if Maps not in data[ip]:
-                data[ip][Maps] = {
-                    "Ip": ip,
+            if Maps not in data:
+                data[Maps] = {
                     "Map": Maps,
                     "Play_Time": PlayTime,
                     "Played": Played,
@@ -119,21 +119,27 @@ class PlayerListV(discord.ui.View):
                     "Last_Played": LastPlayed,
                 }
             else:
-                if data[ip][Maps]["Last_Played"] < LastPlayed:
-                    data[ip][Maps]["Last_Played"] = LastPlayed
-                data[ip][Maps]["Play_Time"] += PlayTime
-                data[ip][Maps]["Played"] += Played
-                data[ip][Maps]["Average_Player"].append(AveragePlayers)
+                if data[Maps]["Last_Played"] < LastPlayed:
+                    data[Maps]["Last_Played"] = LastPlayed
+                data[Maps]["Play_Time"] += PlayTime
+                data[Maps]["Played"] += Played
+                data[Maps]["Average_Player"].append(AveragePlayers)
         listed = []
+        total_average = []
         for k in data:
-            for m in data[k]:
-                listed.append(tuple(data[k][m].values()))
-        d = pd.DataFrame(
+            total = np.average(data[k]["Average_Player"])
+            total_average.append(total)
+            data[k]["Average_Player"]: int = total
+            listed.append(tuple(data[k].values()))
+
+        df = pd.DataFrame(
             listed,
-            columns=("Ip", "Maps", "Time Played (minutes)", "Played time", "Average Players", "Last Played (UTC+0)"),
+            columns=("Maps", "Time Played (minutes)", "Played time", "Average Players", "Last Played (UTC+0)"),
+            index=None
         )
-        d = d.sort_values("Time Played (minutes)", ascending=False)
-        b = io.BytesIO(bytes(d.to_string(), "utf-8"))
+        df = df.sort_values("Time Played (minutes)", ascending=False)
+        s = pd.Series(["51.79.162.166:27015", np.average(total_average).__round__()], index=["Server Ip", "Total Average Player"])
+        b = io.BytesIO(bytes(s.to_string()+"\n"+df.to_string(), "utf-8"))
         file = discord.File(b, ip + ".txt")
         try:
             await _interaction.user.send(content="**Note: Data is not 100% accurate**", file=file)
@@ -144,6 +150,11 @@ class PlayerListV(discord.ui.View):
         else:
             _logger.info(f"server week stats {self.ipport} send to {_interaction.user}")
             await _interaction.followup.send(content="Server week stats send to private message", ephemeral=True)
+        finally:
+            b.close()
+            file.close()
+            del b
+            del file
 
 
 class Confirm(discord.ui.View):

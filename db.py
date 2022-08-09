@@ -6,10 +6,8 @@ import typing as t
 from datetime import datetime
 from ipaddress import IPv4Address
 from itertools import chain
-from pathlib import Path
 
 import aiomysql
-import pandas
 from pymysql.err import InterfaceError, OperationalError
 
 from enums import MapEnum
@@ -277,7 +275,7 @@ class connection:
         r = await self.execute("SELECT * FROM `server_info`", fetch=True, fetchall=True)
         return r
 
-    async def fetchserverdata(self, ip: str) -> t.List[t.Tuple]:
+    async def fetchserverdata(self, ip: str) -> t.List[t.Tuple[int, str, str, datetime, datetime, int, int, float]]:
         """
         fetch server data from db
             return tuple(id, ip, map, date, lastplayed, playtime, played, average_players)

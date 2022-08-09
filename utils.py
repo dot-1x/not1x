@@ -1,5 +1,7 @@
 import asyncio
 import io
+import typing as t
+
 from pathlib import Path
 
 import discord
@@ -9,6 +11,22 @@ from PIL import Image
 from logs import setlog
 
 _logger = setlog(__name__)
+
+
+class aiterator:
+    def __init__(self, data=t.Union[list, tuple]) -> None:
+        self.count = 0
+        self.data = data
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self.count >= len(self.data):
+            raise StopAsyncIteration
+        iter = self.data[self.count]
+        self.count += 1
+        return iter
 
 
 async def most_color(asset: discord.Asset | None) -> discord.Colour:

@@ -143,9 +143,9 @@ class ServerTask:
             async for _, userid, _, _ in await self.bot.db.fetchuser():
                 _user = self.bot.get_user(userid)
                 notif = await self.bot.db.getnotify(userid)
-                if not _user:
+                if not _user or self.mapname not in notif:
                     continue
-                await asyncio.wait_for(self.notifyuser(_user, userid, server_info, notif), timeout=30)
+                await asyncio.wait_for(_user.send(embed=server_info), timeout=30)
 
         async for _, guild, channel, tracking_ip, message in await self.bot.db.fetchip(self.ipport):
             channel: discord.TextChannel = self.bot.get_channel(channel)
@@ -168,7 +168,7 @@ class ServerTask:
                         await _msg.delete()
                     except:
                         _logger.error(f"Cant delete message on {guild}")
-                    self.stop()
+                    self.bot.server_task[self.ipport].stop()
                 continue
             await asyncio.wait_for(self.editmsg(guild, tracking_ip, message, channel, server_info, self._view), 30)
 

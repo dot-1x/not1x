@@ -140,7 +140,7 @@ class PlayerListV(discord.ui.View):
         df = df.sort_values("Time Played (minutes)", ascending=False)
         s = pd.Series([self.ipport, np.average(total_average).__round__()], index=["Server Ip", "Total Average Player"])
         b = io.BytesIO(bytes(s.to_string()+"\n"+df.to_string(), "utf-8"))
-        file = discord.File(b, ip + ".txt")
+        file = discord.File(b, self.ipport + ".txt")
         try:
             await _interaction.user.send(content="**Note: Data is not 100% accurate**", file=file)
         except discord.Forbidden:

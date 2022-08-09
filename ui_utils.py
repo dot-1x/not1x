@@ -138,7 +138,7 @@ class PlayerListV(discord.ui.View):
             index=None
         )
         df = df.sort_values("Time Played (minutes)", ascending=False)
-        s = pd.Series(["51.79.162.166:27015", np.average(total_average).__round__()], index=["Server Ip", "Total Average Player"])
+        s = pd.Series([self.ipport, np.average(total_average).__round__()], index=["Server Ip", "Total Average Player"])
         b = io.BytesIO(bytes(s.to_string()+"\n"+df.to_string(), "utf-8"))
         file = discord.File(b, ip + ".txt")
         try:

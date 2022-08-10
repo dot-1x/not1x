@@ -130,10 +130,9 @@ class ServerTask:
 
         if not self._notif and self.ipport != "103.62.48.10:27058" and self.isonline:
             self._notif = True
-            async for _, userid, _, _ in await self.bot.db.fetchuser():
+            async for _, userid, _, map in await self.bot.db.fetchuser():
                 _user = self.bot.get_user(userid)
-                notif = await self.bot.db.getnotify(userid)
-                if not _user or not any(re.search(x.lower(), self.mapname.lower()) for x in notif):
+                if not _user or not re.search(map.lower(), self.mapname.lower()):
                     continue
                 await asyncio.wait_for(_user.send(embed=server_info), timeout=30)
 

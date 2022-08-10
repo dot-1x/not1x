@@ -208,7 +208,7 @@ class MapCommands(commands.Cog):
         await ctx.respond("please wait till i finish updating map list...")
         await updatemap()
 
-    @mapgroup.command(name="find", description="Find map on current db")
+    @mapgroup.command(name="find", description="notify a map by selecting map on current db")
     async def map_find(
         self,
         ctx: discord.ApplicationContext,
@@ -254,11 +254,13 @@ class MapCommands(commands.Cog):
         ctx: discord.ApplicationContext, 
         pattern: discord.Option(str, description="string pattern to notify"),
     ):
+        await ctx.defer()
+        pattern: str = pattern.strip()
         if re.search("\s", string=pattern):
             await ctx.respond("pattern must not contain any whitespace")
             return
         await self.bot.db.insertnotify(ctx.author.id, ctx.author, [pattern.lower()])
-        await ctx.respond(f"String pattern: {pattern} added to notification")
+        await ctx.respond(f"String pattern: **{pattern}** added to notification")
 
     @notify.command(name="list", description="Get your notification list")
     async def notify_list(self, ctx: discord.ApplicationContext):

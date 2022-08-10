@@ -6,6 +6,7 @@ from ipaddress import IPv4Address
 from itertools import chain
 
 import aiomysql
+import numpy as np
 from pymysql.err import InterfaceError, OperationalError
 
 from enums import MapEnum
@@ -153,6 +154,10 @@ class connection:
     async def fetchuser(self) -> iterdb:
         r = await self.execute("SELECT * FROM `user_data`", fetch=True, fetchall=True, res=True)
         return iterdb(r)
+
+    async def fetchuserid(self) -> iterdb:
+        r = await self.execute("SELECT `userid` FROM `user_data`", fetch=True, fetchall=True, res=True)
+        return iterdb(np.unique(r))
 
     async def fetchguild(self) -> tuple:
         r = await self.execute("SELECT * FROM `guild_tracking`", fetch=True, fetchall=True, res=True)

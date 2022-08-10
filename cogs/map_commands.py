@@ -27,7 +27,7 @@ class MapCommands(commands.Cog):
 
     server = SlashCommandGroup("server", "Commands for source server")
     notify = SlashCommandGroup("notify", "Group for notify command")
-    mapgroup = SlashCommandGroup("map", "Notify a map", parent=notify)
+    mapgroup = notify.create_subgroup("map", "Notify a map")
 
     @server.command(description="Checks about source server info")
     @discord.option(name="ip", type=str, description="A server ip address")
@@ -209,7 +209,7 @@ class MapCommands(commands.Cog):
         await updatemap()
 
     @mapgroup.command(name="find", description="Find map on current db")
-    async def mapfind(
+    async def map_find(
         self,
         ctx: discord.ApplicationContext,
         *,
@@ -249,7 +249,7 @@ class MapCommands(commands.Cog):
         await ui_utils.select_map(ctx, opt)
 
     @mapgroup.command(name="re", description="Notify a map using regex, map with founded string will be notified")
-    async def mapre(
+    async def map_re(
         self, 
         ctx: discord.ApplicationContext, 
         pattern: discord.Option(str, description="string pattern to notify"),

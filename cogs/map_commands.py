@@ -27,6 +27,7 @@ class MapCommands(commands.Cog):
 
     server = SlashCommandGroup("server", "Commands for source server")
     notify = SlashCommandGroup("notify", "Group for notify command")
+    mapgroup = SlashCommandGroup("map", "Notify a map", parent=notify)
 
     @server.command(description="Checks about source server info")
     @discord.option(name="ip", type=str, description="A server ip address")
@@ -207,8 +208,8 @@ class MapCommands(commands.Cog):
         await ctx.respond("please wait till i finish updating map list...")
         await updatemap()
 
-    @notify.command(description="Notify a map when its played")
-    async def map(
+    @mapgroup.command(name="find", description="Find map on current db")
+    async def mapfind(
         self,
         ctx: discord.ApplicationContext,
         *,
@@ -246,6 +247,18 @@ class MapCommands(commands.Cog):
             embeds.description = f"\n".join(invalid_map)
             await ctx.send(embed=embeds, delete_after=10)
         await ui_utils.select_map(ctx, opt)
+
+    @mapgroup.command(name="re", description="Notify a map using regex, map with founded string will be notified")
+    async def mapre(
+        self, 
+        ctx: discord.ApplicationContext, 
+        pattern: discord.Option(str, description="string pattern to notify"),
+    ):
+        if re.search("\s", string=pattern):
+            await ctx.respond("pattern must not contain any whitespace")
+            return
+        await self.bot.db.insertnotify(ctx.author.id, ctx.author, [pattern.lower()])
+        await ctx.respond(f"String pattern: {pattern} added to notification")
 
     @notify.command(name="list", description="Get your notification list")
     async def notify_list(self, ctx: discord.ApplicationContext):

@@ -9,5 +9,5 @@
         "db":"dbname"
     },
     "token":"DiscordToken",
-    "serverquery":[]
+    "serverquery":["List of IP to track"]
 }

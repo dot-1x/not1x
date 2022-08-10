@@ -42,6 +42,7 @@ CREATE TABLE `not1x`.`server_info` (
     `lastplayed` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , 
     `playtime` INT NOT NULL , 
     `played` INT NOT NULL , 
+    `average_players` INT NOT NULL , 
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
@@ -50,6 +51,7 @@ CREATE TABLE `not1x`.`server_data` (
     `id` INT NOT NULL AUTO_INCREMENT , 
     `server_ip` VARCHAR(255) NOT NULL , 
     `last_map` VARCHAR(255) NOT NULL , 
+    `time_play` BIGINT NOT NULL , 
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB;
 """
@@ -73,10 +75,8 @@ class iterdb:
 
 
 class connection:
-    def __init__(self) -> None:
-        with open("_debugs/config.json", "r") as f:
-            self.__data = json.load(f)
-            self.__data = self.__data["database"]
+    def __init__(self, data: dict) -> None:
+        self.__data = data
 
     async def execute(
         self, query: str, *args, fetch: bool = False, fetchall: bool = False, res: bool = True, commit: bool = False
@@ -110,7 +110,7 @@ class connection:
             con.close()
         return _res
 
-    async def getnotify(self, userid: int) -> list:
+    async def getnotify(self, userid: int) -> t.List[str]:
         r = await self.execute(
             "SELECT notified_maps FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=True, res=True
         )

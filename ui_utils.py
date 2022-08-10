@@ -118,7 +118,7 @@ class PlayerListV(discord.ui.View):
             listed,
             index=None,
         )
-        df = df.sort_values("Play_Time", ascending=False)
+        df = df.sort_values("Play_Time", ascending=False, ignore_index=True)
         stringdata = (
             f"Playtime is in minutes, Date are UTC+0\n\nServer IP: {self.ipport}\nTotal Average Players: {np.average(total_average).__round__()}\nSorted By Most PlayTime\n"
             + df.to_string()

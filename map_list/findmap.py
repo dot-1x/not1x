@@ -33,14 +33,12 @@ def parser(site: httpx.Response):
 
 
 async def updatemap():
-    start = datetime.now()
     maps = []
     loop = asyncio.get_running_loop()
     async with httpx.AsyncClient() as client:
         for k in MAPSOURCE:
             resp = await client.get(MAPSOURCE[k])
-            with ThreadPoolExecutor() as pool:
-                res = await loop.run_in_executor(pool, parser, resp)
+            res = await loop.run_in_executor(None, parser, resp)
             maps.append(res)
     maps = sorted(list(dict.fromkeys(chain.from_iterable(maps)).keys()))
     with open("map_list/maplist.txt", "w+") as f:

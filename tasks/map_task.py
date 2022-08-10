@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import traceback
 import typing as t
+import re
 from datetime import datetime
 from ipaddress import ip_address
 
@@ -133,7 +133,7 @@ class ServerTask:
             async for _, userid, _, _ in await self.bot.db.fetchuser():
                 _user = self.bot.get_user(userid)
                 notif = await self.bot.db.getnotify(userid)
-                if not _user or self.mapname not in notif:
+                if not _user or not any(re.search(x.lower(), self.mapname.lower()) for x in notif):
                     continue
                 await asyncio.wait_for(_user.send(embed=server_info), timeout=30)
 

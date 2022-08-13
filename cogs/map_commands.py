@@ -200,7 +200,7 @@ class MapCommands(commands.Cog):
         opt = [discord.SelectOption(label=x, value=x) for x in notify_list]
         await ui_utils.select_ip(ctx, opt)
 
-    @slash_command(description="Update map list")
+    @slash_command(description="Update map list", guild_ids=[620983321677004800])
     @commands.cooldown(1, 3600, commands.BucketType.user)
     async def update_map(self, ctx: discord.ApplicationContext):
         if ctx.author.id not in self.bot.owner_ids:

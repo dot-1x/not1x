@@ -136,6 +136,7 @@ class Bot(bridge.Bot):
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
 
     async def on_guild_join(self, guild: discord.Guild):
+        _logger.info(f"Bot has joined guild: {guild.name}({guild.id})")
         try:
             await self.db.loadguild(guild.id)
         except:

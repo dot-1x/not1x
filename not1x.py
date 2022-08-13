@@ -39,7 +39,7 @@ class Bot(bridge.Bot):
         self.help = CustomHelp()
         self.config = config
         self.__token = token
-        intent = discord.Intents(guild_messages=True, guilds=True, members=True, messages=True, presences=True)
+        intent = discord.Intents(guilds=True, members=True, messages=True, presences=True)
 
         super().__init__(
             command_prefix=self.prefix,
@@ -140,17 +140,6 @@ class Bot(bridge.Bot):
             await self.db.loadguild(guild.id)
         except:
             _logger.error("Failed to insert guild to database")
-        return super().on_guild_join(guild)
-
-    async def on_message(self, message: discord.Message = None):
-        try:
-            if message.channel.id == Data.STD_ERR_CHANNEL.value and not message.author.bot:
-                await message.delete()
-                raise StdErrChannel
-        except StdErrChannel:
-            _logger.warning(StdErrChannel)
-            return
-        return await super().on_message(message)
 
     async def on_error(self, event_method: str, *args: t.Any, **kwargs: t.Any) -> None:
         _logger.debug(event_method)
@@ -218,13 +207,14 @@ class Bot(bridge.Bot):
     @bridge.bridge_command(
         desciprtion="reload any extension",
         usage="( reload_ext ): ext name, empty for all loaded ext",
+        guild_ids=[620983321677004800]
     )
     @discord.option(name="exts", type=str, description="extension name to reload", required=False)
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def reload_ext(ctx: bridge.BridgeContext, *, exts=None):
         await ctx.reply("Reloading extensions")
         if ctx.author.id not in ctx.bot.owner_ids:
-            raise commands.NotOwner
+            raise commands.NotOwner("You Do not have permission to use this commands")
         bot: Bot = ctx.bot
         if not exts:
             for k in list(bot.extensions):

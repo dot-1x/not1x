@@ -250,8 +250,8 @@ class MapCommands(commands.Cog):
 
     @mapgroup.command(name="re", description="Notify a map using regex, map with founded string will be notified")
     async def map_re(
-        self, 
-        ctx: discord.ApplicationContext, 
+        self,
+        ctx: discord.ApplicationContext,
         pattern: discord.Option(str, description="string pattern to notify"),
     ):
         await ctx.defer()

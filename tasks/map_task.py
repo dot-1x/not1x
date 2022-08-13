@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import traceback
 import typing as t
-import re
 from datetime import datetime
 from ipaddress import ip_address
 

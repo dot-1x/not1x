@@ -2,7 +2,13 @@ import typing as t
 from datetime import datetime
 from enum import Enum
 
+import discord
+
 UknownMap = t.NewType("UnkownMap", str)
+ExcType = t.NewType("ExcType", str)
+
+cmd_err = ExcType("logs/cmderror.log")
+base_err = ExcType("logs/traceback.log")
 
 
 class Status(Enum):
@@ -31,3 +37,15 @@ class ServerHistory(t.TypedDict):
     Played: int
     Average_Player: t.Optional[int | t.List[int]]
     Last_Played: datetime
+
+
+class ExceptionType(Enum):
+    CMD = cmd_err
+    BASE = base_err
+
+
+class CommandHelp(t.TypedDict):
+    name: str
+    desctiption: str
+    parent: str | None
+    option: t.List[discord.Option]

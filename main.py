@@ -10,5 +10,5 @@ with open("_debugs/config.json", "r") as cfg:
 
 if __name__ == "__main__":
     db = connection(CONFIG["database"])
-    bot = Bot(CONFIG, token=CONFIG["token"], db=db)
+    bot = Bot(CONFIG, token=CONFIG["token"], db=db, debug=True)
     bot.run()

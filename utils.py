@@ -1,11 +1,14 @@
-import asyncio
 import io
+import secrets
+import traceback
 import typing as t
 from datetime import datetime
+from pathlib import Path
 
 import discord
 import numpy as np
 import pandas as pd
+from discord.ext import commands
 from PIL import Image
 
 from enums import *
@@ -14,38 +17,42 @@ from logs import setlog
 _logger = setlog(__name__)
 
 
-class aiterator:
-    def __init__(self, data=t.Union[list, tuple]) -> None:
-        self.count = 0
-        self.data = data
-
-    def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        if self.count >= len(self.data):
-            raise StopAsyncIteration
-        iter = self.data[self.count]
-        self.count += 1
-        return iter
-
-
 async def most_color(asset: discord.Asset | None) -> discord.Colour:
     if not asset:
         return discord.Colour.from_rgb(245, 204, 22)
 
-    img = Image.open(io.BytesIO(await asset.read()))
-    img = img.convert("RGB")
-    img = img.resize((150, 150))
-    counter = 0
-    r = g = b = 0
-    for c in img.getdata():
-        r += c[0]
-        g += c[1]
-        b += c[2]
-        counter += 1
+    with Image.open(io.BytesIO(await asset.read())) as i:
+        i = i.convert("RGB")
+        color_size = len(i.getdata())
+        r = round(sum([_r for _r in i.getdata(0)]) / color_size)
+        g = round(sum([_r for _r in i.getdata(1)]) / color_size)
+        b = round(sum([_r for _r in i.getdata(2)]) / color_size)
+        return discord.Colour.from_rgb(r, g, b)
 
-    return discord.Colour.from_rgb(round(r / counter), round(g / counter), round(b / counter))
+
+def dominant_color(file: str | bytes):
+    with Image.open(file) as i:
+        i = i.convert("RGB")
+        color_size = len(i.getdata())
+        r = round(sum([_r for _r in i.getdata(0)]) / color_size)
+        g = round(sum([_r for _r in i.getdata(1)]) / color_size)
+        b = round(sum([_r for _r in i.getdata(2)]) / color_size)
+        return (r, g, b)
+
+
+def log_exception(exc: Exception, typ: ExcType, id: int = 0):
+    if not id:
+        id = secrets.randbits(64)
+    _tb = Path(typ).exists()
+    _mode = "x" if not _tb else "a"
+    with open(typ, _mode) as f:
+        f.write(
+            str(datetime.utcnow())
+            + "\n"
+            + f"ID: {id}\n"
+            + "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+            + "\n"
+        )
 
 
 def parse_history(history: t.List[t.Tuple[int, str, str, datetime, datetime, int, int, float]]):
@@ -69,3 +76,10 @@ def parse_history(history: t.List[t.Tuple[int, str, str, datetime, datetime, int
         total = np.average(data[k]["Average_Player"])
         data[k]["Average_Player"]: int = total
         yield ServerHistory(**data[k])
+
+
+def generate_help_embed(command: t.Union[discord.SlashCommand, discord.SlashCommandGroup]) -> discord.EmbedField:
+    if isinstance(command, discord.SlashCommandGroup):
+        return [generate_help_embed(c) for c in command.subcommands]
+    else:
+        return discord.EmbedField(name=command.qualified_name, value=f"**{command.description}**", inline=True)

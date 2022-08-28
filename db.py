@@ -1,5 +1,4 @@
 import asyncio
-import json
 import typing as t
 from datetime import datetime
 from ipaddress import IPv4Address
@@ -9,8 +8,9 @@ import aiomysql
 import numpy as np
 from pymysql.err import InterfaceError, OperationalError
 
-from enums import MapEnum
+from enums import *
 from logs import setlog
+from utils import log_exception
 
 _logger = setlog(__name__)
 
@@ -95,6 +95,8 @@ class connection:
             _logger.critical("Failed to connect to db!")
         except InterfaceError:
             _logger.critical("Connection to db was closed!")
+        except Exception as e:
+            log_exception(e, base_err)
         else:
             cursor: aiomysql.Cursor = await con.cursor()
             await cursor.execute(query, *args)

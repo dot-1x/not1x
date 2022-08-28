@@ -1,9 +1,6 @@
 import asyncio
 import re
 import typing as t
-from ast import AsyncWith
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 from itertools import chain
 
 import httpx

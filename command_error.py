@@ -1,9 +1,6 @@
 import secrets
-import traceback
 import typing as t
 from datetime import datetime
-from inspect import trace
-from pathlib import Path
 
 import discord
 from aiomysql import OperationalError
@@ -15,6 +12,7 @@ from discord.ext.commands.errors import *
 import not1x
 from enums import *
 from logs import setlog
+from utils import log_exception
 
 _logger = setlog(__name__)
 
@@ -102,15 +100,6 @@ async def CheckError(
 
     _logger.warning(error)
 
-    _tb = Path("logs/cmderror.log").exists()
-    _mode = "x" if not _tb else "a"
-    with open("logs/cmderror.log", _mode) as f:
-        f.write(
-            str(datetime.utcnow())
-            + "\n"
-            + f"ID: {_err_id}\n"
-            + "".join(traceback.format_exception(type(error), error, error.__traceback__))
-            + "\n"
-        )
+    log_exception(error, cmd_err, _err_id)
 
     await std_err.send(embed=_err_msg)

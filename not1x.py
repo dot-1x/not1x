@@ -1,33 +1,29 @@
-import asyncio
-import os
-import pathlib
-import traceback
 import typing as t
-from ast import Store
-from datetime import datetime
-from ipaddress import IPv4Address, ip_address
+from ipaddress import ip_address
 
 import discord
 from discord.ext import bridge, commands, tasks
 from discord.ext.commands.errors import *
 
 import ui_utils
-from command_error import CheckError, StdErrChannel
+from command_error import CheckError
 from db import connection
 from enums import *
 from logs import setlog
 from tasks.map_task import ServerTask
+from utils import log_exception
 
-__version__ = "0.6.2"
+__version__ = "0.6.5"
 
 _logger = setlog(__name__)
 
 
 class Bot(bridge.Bot):
-    def __init__(self, config: dict, *, token: str, db: connection):
+    def __init__(self, config: dict, *, token: str, db: connection, debug: bool = False):
         self.prefix = "."
         self.ready = False
         self.config = config
+        self.debug = debug
         self.__token = token
         intent = discord.Intents(guilds=True, members=True, messages=True, presences=True)
 
@@ -36,6 +32,7 @@ class Bot(bridge.Bot):
             owner_ids=Data.OWNER.value,
             case_insensitive=True,
             intents=intent,
+            help_command=None,
         )
         _logger.info("++++++ Loading not1x ++++++")
         _logger.info(f"Version: {__version__}")
@@ -46,7 +43,7 @@ class Bot(bridge.Bot):
 
         self.exts = self.load_extension("cogs", recursive=True, store=True)
         self._failed_exts = [k for k, v in self.exts.items() if isinstance(v, Exception)]
-        self._pending_exts = []
+        self._loaded_exts = [k for k, v in self.exts.items() if v is True]
         self.db = db
 
     def run(self):
@@ -108,6 +105,14 @@ class Bot(bridge.Bot):
 
         self.ready = True
 
+        for c in self.cogs:
+            _logger.info(f"Loaded cog: {c}")
+        _logger.info(f"Failed cogs: {self._failed_exts}")
+
+        if self.debug:
+            _logger.warning("++++++ DEBUG MODE ENABLED +++++")
+            return
+
         async for guild in self.fetch_guilds():
             try:
                 await self.db.loadguild(guild.id)
@@ -116,10 +121,6 @@ class Bot(bridge.Bot):
                 self.loop.stop()
 
         await self.map_tasks()
-
-        for c in self.cogs:
-            _logger.info(f"Loaded cog: {c}")
-        _logger.info(f"Failed cogs: {self._failed_exts}")
 
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
 
@@ -130,12 +131,6 @@ class Bot(bridge.Bot):
         except:
             _logger.error("Failed to insert guild to database")
 
-    async def on_error(self, event_method: str, *args: t.Any, **kwargs: t.Any) -> None:
-        _logger.debug(event_method)
-        _logger.debug(args)
-        _logger.debug(kwargs)
-        return await super().on_error(event_method, *args, **kwargs)
-
     async def on_application_command_error(self, ctx: discord.ApplicationContext, err: discord.DiscordException):
         await CheckError(ctx, err)
 
@@ -145,14 +140,27 @@ class Bot(bridge.Bot):
     ####################### End of bot event handler #######################
     def reload_extension(self, name: t.Optional[str] = None, *, package: t.Optional[str] = None) -> None:
         if name is None:
-            self._pending_exts.extend(self._failed_exts)
             self._failed_exts.clear()
-            for ext in [k for k in self.exts].extend(self._pending_exts):
-                try:
-                    super().reload_extension(ext)
-                except Exception:
-                    _logger.error(f"'{ext}' Throwing an error while reloading")
-                    self._failed_exts.append(ext)
-            self._pending_exts.clear()
+            for k, v in self.exts.items():
+                if isinstance(v, Exception):
+                    try:
+                        self.load_extension(k, store=False)
+                    except Exception as e:
+                        _logger.error(f"'{k}' Throwing an error while loading")
+                        self.exts[k] = v
+                        self._failed_exts.append(k)
+                        log_exception(e, base_err)
+                    else:
+                        _logger.info(f"Loaded Extension: {k}")
+                        self.exts[k] = True
+                else:
+                    try:
+                        super().reload_extension(k)
+                    except Exception as e:
+                        _logger.error(f"'{k}' Throwing an error while reloading")
+                        log_exception(e, base_err)
+                        self._failed_exts.append(k)
+                    else:
+                        _logger.info(f"Reloaded Extension: {k}")
             return
         return super().reload_extension(name, package=package)

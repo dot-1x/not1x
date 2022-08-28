@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-import traceback
 import typing as t
 from datetime import datetime
 from ipaddress import ip_address
@@ -13,6 +12,7 @@ import numpy as np
 from enums import *
 from logs import setlog
 from source_query import GetServer
+from utils import log_exception
 
 if t.TYPE_CHECKING:
     import not1x
@@ -74,9 +74,7 @@ class ServerTask:
         except discord.Forbidden:
             pass
         except Exception as e:
-            with open("logs/traceback.log", "a") as f:
-                traceback.print_exc(file=f)
-            _logger.error(e)
+            log_exception(e, base_err)
 
     async def notifyuser(self, user: discord.User, userid: int, embed: discord.Embed, maps: list):
         if self.mapname.lower() in maps:

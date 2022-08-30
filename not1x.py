@@ -1,3 +1,4 @@
+from itertools import chain
 import typing as t
 from ipaddress import ip_address
 
@@ -13,7 +14,7 @@ from logs import setlog
 from tasks.map_task import ServerTask
 from utils import log_exception
 
-__version__ = "0.6.5"
+__version__ = "0.6.8"
 
 _logger = setlog(__name__)
 
@@ -109,18 +110,30 @@ class Bot(bridge.Bot):
             _logger.info(f"Loaded cog: {c}")
         _logger.info(f"Failed cogs: {self._failed_exts}")
 
+        loaded_guilds =  await self.db.execute("SELECT `guild_id` FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
+        loaded_guilds: t.List[int] = list(dict.fromkeys(chain.from_iterable(loaded_guilds)))
+        guilds = await self.fetch_guilds().flatten()
+        for guild in guilds:
+            if not guild.id in loaded_guilds:
+                try:
+                    await self.db.loadguild(guild.id)
+                except Exception as e:
+                    _logger.critical("Failed to load guild from database")
+                    log_exception(e, base_err)
+                    self.loop.stop()
+                else:
+                    loaded_guilds.append(guild.id)
+        g_ids = [i.id for i in guilds]
+        for g_id in loaded_guilds:
+            if g_id in g_ids:
+                continue
+            else:
+                await self.db.deleteguild(g_id)
+
         if self.debug:
             _logger.warning("++++++ DEBUG MODE ENABLED +++++")
-            return
-
-        async for guild in self.fetch_guilds():
-            try:
-                await self.db.loadguild(guild.id)
-            except Exception as e:
-                _logger.critical("Failed to load guild from database")
-                self.loop.stop()
-
-        await self.map_tasks()
+        else:
+            await self.map_tasks()
 
         _logger.info(f"++++++ Successfully Logged in as: {self.user} ++++++")
 
@@ -130,6 +143,10 @@ class Bot(bridge.Bot):
             await self.db.loadguild(guild.id)
         except:
             _logger.error("Failed to insert guild to database")
+
+    async def on_guild_remove(self, guild: discord.Guild):
+        _logger.info(f"Bot has leaving guild {guild.name}({guild.id})")
+        await self.db.deleteguild(guild.id)
 
     async def on_application_command_error(self, ctx: discord.ApplicationContext, err: discord.DiscordException):
         await CheckError(ctx, err)

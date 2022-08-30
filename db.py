@@ -172,14 +172,14 @@ class connection:
         return iterdb(r)
 
     async def loadguild(self, id: int):
-        result = await self.execute("SELECT `guild_id` FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
-        if id in list(chain.from_iterable(result)):
-            pass
-        else:
-            await self.execute(
-                "INSERT INTO `guild_tracking`(`guild_id`) VALUES (%s)", (str(id)), commit=True, res=False, fetch=False
-            )
-            _logger.info(f"Successfully added new guild {id} to db")
+        await self.execute(
+            "INSERT INTO `guild_tracking`(`guild_id`) VALUES (%s)", (str(id)), commit=True, res=False, fetch=False
+        )
+        _logger.info(f"Successfully added new guild {id} to db")
+
+    async def deleteguild(self, id: int):
+        await self.execute("DELETE FROM `guild_tracking` WHERE `guild_id` = %s", (id), commit=True)
+        _logger.info(f"Guild {id} deleted from database")
 
     async def getchannel(self, guild: int) -> int:
         r = await self.execute(

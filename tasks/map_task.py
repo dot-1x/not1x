@@ -76,22 +76,8 @@ class ServerTask:
         except Exception as e:
             log_exception(e, base_err)
 
-    async def notifyuser(self, user: discord.User, userid: int, embed: discord.Embed, maps: list):
-        if self.mapname.lower() in maps:
-            try:
-                await user.send(
-                    embed=embed,
-                )
-            except:
-                _logger.warning(f"Cannot send message to {userid}")
-
     async def servercheck(self) -> None:
-        """
-        TO DO:
-        Fix Playtime
-        """
         _st = datetime.now()
-
         self.mapname = await self.bot.db.getlastmap(self.ipport)
         ip = ip_address(self.ipport.split(":")[0])
         port = int(self.ipport.split(":")[1])
@@ -128,13 +114,13 @@ class ServerTask:
 
         if not self._notif and self.ipport != "103.62.48.10:27058" and self.isonline:
             self._notif = True
-            async for _, userid, _, map in await self.bot.db.fetchuser():
+            async for _, userid, _, map in self.bot.db.fetchuser():
                 _user = self.bot.get_user(userid)
                 if not _user or not re.search(map.lower(), self.mapname.lower()):
                     continue
                 await asyncio.wait_for(_user.send(embed=server_info), timeout=30)
 
-        async for _, guild, channel, tracking_ip, message in await self.bot.db.fetchip(self.ipport):
+        async for _, guild, channel, tracking_ip, message in self.bot.db.fetchip(self.ipport):
             channel: discord.TextChannel = self.bot.get_channel(channel)
             if not channel:
                 continue

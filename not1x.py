@@ -110,8 +110,8 @@ class Bot(bridge.Bot):
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")
         _logger.info(f"Failed cogs: {self._failed_exts}")
-        if "devtoken" in self.config or self.devmode:
 
+        if self.devmode:
             _logger.warning(f"++++++ LOGGED AS DEVELOPER MODE ({self.user}) +++++")
             return
 

@@ -143,9 +143,10 @@ class connection:
                 )
             _logger.info(f"Successfully added new user {name} to db")
 
-    async def fetchuser(self) -> t.Generator[t.Tuple[int, int, str, str]]:
+    async def fetchuser(self):
         r = await self.execute("SELECT * FROM `user_data`", fetch=True, fetchall=True, res=True)
         for d in r:
+            d: t.Tuple[int, int, str, str]
             yield d
 
     async def fetchuserid(self) -> t.Generator[int]:
@@ -157,11 +158,12 @@ class connection:
         r = await self.execute("SELECT * FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
         return r
 
-    async def fetchip(self, ip: str) -> t.Generator[t.Tuple[int, int, int, str, int]]:
+    async def fetchip(self, ip: str):
         r = await self.execute(
             "SELECT * FROM `guild_tracking` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True, res=True
         )
         for d in r:
+            d: t.Tuple[int, int, int, str, int]
             yield d
 
     async def loadguild(self, id: int):

@@ -6,7 +6,7 @@ from discord.ext import bridge, commands
 from enums import *
 from logs import setlog
 from not1x import Bot
-from utils import generate_help_embed, most_color
+from utils import addhelp, generate_help_embed, help_command, most_color
 
 _logger = setlog(__name__)
 
@@ -22,6 +22,7 @@ class AdminCog(commands.Cog):
     )
     @discord.option(name="exts", type=str, description="extension name to reload", required=False)
     @commands.cooldown(1, 15, commands.BucketType.user)
+    @addhelp("Bot owner only command")
     async def reload_ext(
         self, ctx: t.Optional[bridge.BridgeApplicationContext | bridge.BridgeExtContext], *, exts=None
     ):
@@ -35,12 +36,14 @@ class AdminCog(commands.Cog):
                 self.bot.reload_extension(ext_)
         await ctx.send(f"Extension Loaded: {list(self.bot.extensions.keys())}")
 
-    @commands.slash_command(description="Show list of available command!")
-    async def help(self, ctx: bridge.BridgeApplicationContext):
+    @commands.slash_command(description="Show list of available command!", usage="dsjakljdlw")
+    @discord.option(name="command", description="find specific command help", type=str, required=False)
+    @addhelp("Show help of current available command, usage: /help [command]")
+    async def help(self, ctx: bridge.BridgeApplicationContext, command: str = None):
         await ctx.defer()
         cmds = [generate_help_embed(c) for c in self.bot.application_commands]
         em = discord.Embed(title="List Of Available Command!", color=await most_color(ctx.author.avatar))
-        flattened_cmd: t.List[discord.EmbedField] = []
+        flattened_cmd: t.List[discord.SlashCommand] = []
 
         def _flat(li):
             for c in li:
@@ -50,8 +53,21 @@ class AdminCog(commands.Cog):
                     flattened_cmd.append(c)
 
         _flat(cmds)
+        if command:
+            cmd = [c for c in flattened_cmd if c.qualified_name == command]
+            if not len(cmd):
+                return await ctx.respond(f"No command named **{command}** found!")
+            em.title = "Specific command help"
+            em.description = "**<...>**: Required parameter\n**[...]**: Optional parameter"
+            em.add_field(
+                name=f"{command} command usage",
+                value=help_command.get(cmd[0].callback, "No help provided!"),
+                inline=False,
+            )
+            return await ctx.respond(embed=em)
+        em.description = "**Use /help [command] to search up specific command help**"
         for c in flattened_cmd:
-            em.append_field(c)
+            em.add_field(name=c.qualified_name, value=c.description, inline=True)
         await ctx.respond(embed=em)
 
 

@@ -15,6 +15,7 @@ from enums import *
 from logs import setlog
 
 _logger = setlog(__name__)
+help_command = {}
 
 
 async def most_color(asset: discord.Asset | None) -> discord.Colour:
@@ -78,8 +79,18 @@ def parse_history(history: t.List[t.Tuple[int, str, str, datetime, datetime, int
         yield ServerHistory(**data[k])
 
 
-def generate_help_embed(command: t.Union[discord.SlashCommand, discord.SlashCommandGroup]) -> discord.EmbedField:
+def addhelp(help):
+    def decorator(func: t.Callable):
+        if func in help_command:
+            raise ValueError(f"{func} has already help description")
+        help_command[func] = help
+        return func
+
+    return decorator
+
+
+def generate_help_embed(command: t.Union[discord.SlashCommand, discord.SlashCommandGroup]) -> discord.SlashCommand:
     if isinstance(command, discord.SlashCommandGroup):
         return [generate_help_embed(c) for c in command.subcommands]
     else:
-        return discord.EmbedField(name=command.qualified_name, value=f"**{command.description}**", inline=True)
+        return command

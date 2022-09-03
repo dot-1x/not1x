@@ -16,7 +16,7 @@ from logs import setlog
 from map_list.findmap import updatemap
 from source_query import GetServer
 from tasks.map_task import ServerTask
-from utils import most_color
+from utils import addhelp, most_color
 
 _logger = setlog(__name__)
 
@@ -29,7 +29,7 @@ class MapCommands(commands.Cog):
     notify = SlashCommandGroup("notify", "Group for notify command")
     mapgroup = notify.create_subgroup("map", "Notify a map")
 
-    @server.command(description="Checks about source server info")
+    @server.command(description="Checks about source server info", usage="no usage!")
     @discord.option(name="ip", type=str, description="A server ip address")
     @discord.option(name="port", type=int, description="A server port")
     async def info(self, ctx: discord.ApplicationContext, ip: str, port: int):
@@ -102,6 +102,7 @@ class MapCommands(commands.Cog):
         required=True,
     )
     @commands.has_permissions(manage_guild=True)
+    @addhelp("set the tracking channel, if guild haven't set any yet, it'll add it, else update it")
     async def channel(self, ctx: discord.ApplicationContext, channel: discord.TextChannel):
         try:
             await self.bot.db.updatechannel(ctx.guild.id, channel.id)
@@ -120,6 +121,9 @@ class MapCommands(commands.Cog):
         required=False,
     )
     @commands.has_permissions(manage_guild=True)
+    @addhelp(
+        "add source server to track on current guild\nusage:\n<ip>: must be filled with ipv4 address format, you cannot fill with dns or any invalid ipv4 format\n<port>: server port\n[channel]: select the channel you want to add the tracking to, one channel is for all tracking, if you havent set a channel yet, this field is **REQUIRED**"
+    )
     async def add(
         self,
         ctx: discord.ApplicationContext,
@@ -191,6 +195,9 @@ class MapCommands(commands.Cog):
 
     @server.command(description="Delete an existed task query on guild")
     @commands.has_permissions(manage_guild=True)
+    @addhelp(
+        "Delete existed server query from guild, select the ip from the page to delete from current server query list and press CONFIRM"
+    )
     async def delete(self, ctx: discord.ApplicationContext):
         notify_list = await self.bot.db.gettracking(ctx.guild.id)
 
@@ -202,6 +209,7 @@ class MapCommands(commands.Cog):
 
     @slash_command(description="Update map list", guild_ids=[620983321677004800])
     @commands.cooldown(1, 3600, commands.BucketType.user)
+    @addhelp("Bot Owner only commands")
     async def update_map(self, ctx: discord.ApplicationContext):
         if ctx.author.id not in self.bot.owner_ids:
             raise commands.NotOwner(f"{ctx.author.name} invoking updatemap")
@@ -209,6 +217,9 @@ class MapCommands(commands.Cog):
         await updatemap()
 
     @mapgroup.command(name="find", description="notify a map by selecting map on current db")
+    @addhelp(
+        "Find a map from current map database and add it to your notification list, usage:\n /notify map find ze_deadcore ze_ffxii\nall founded map will be showen on the page, select the map you want to notify and press CONFIRM"
+    )
     async def map_find(
         self,
         ctx: discord.ApplicationContext,
@@ -249,6 +260,9 @@ class MapCommands(commands.Cog):
         await ui_utils.select_map(ctx, opt)
 
     @mapgroup.command(name="re", description="Notify a map using regex, map with founded string will be notified")
+    @addhelp(
+        "Notify a map by using regex, founded map will be notified, eg: /notify map re ze_ (all map containing with 'ze_' will be notified)"
+    )
     async def map_re(
         self,
         ctx: discord.ApplicationContext,
@@ -287,6 +301,7 @@ class MapCommands(commands.Cog):
         await paginator.respond(ctx.interaction)
 
     @notify.command(name="edit", description="Edit or delete your notification list")
+    @addhelp("Edit your notification, select the map from map page, and press CONFIRM to delete your notification")
     async def notify_edit(self, ctx: discord.ApplicationContext):
         await ctx.defer()
         user_notify = await self.bot.db.getnotify(ctx.author.id)

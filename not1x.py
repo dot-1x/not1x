@@ -1,6 +1,6 @@
-from itertools import chain
 import typing as t
 from ipaddress import ip_address
+from itertools import chain
 
 import discord
 from discord.ext import bridge, commands, tasks
@@ -20,11 +20,12 @@ _logger = setlog(__name__)
 
 
 class Bot(bridge.Bot):
-    def __init__(self, config: dict, *, token: str, db: connection, debug: bool = False):
+    def __init__(self, config: dict, *, token: str, db: connection, debug: bool = False, devmode: bool = False):
         self.prefix = "."
         self.ready = False
         self.config = config
         self.debug = debug
+        self.devmode = devmode
         self.__token = token
         intent = discord.Intents(guilds=True, members=True, messages=True, presences=True)
 
@@ -109,8 +110,14 @@ class Bot(bridge.Bot):
         for c in self.cogs:
             _logger.info(f"Loaded cog: {c}")
         _logger.info(f"Failed cogs: {self._failed_exts}")
+        if "devtoken" in self.config or self.devmode:
 
-        loaded_guilds =  await self.db.execute("SELECT `guild_id` FROM `guild_tracking`", fetch=True, fetchall=True, res=True)
+            _logger.warning(f"++++++ LOGGED AS DEVELOPER MODE ({self.user}) +++++")
+            return
+
+        loaded_guilds = await self.db.execute(
+            "SELECT `guild_id` FROM `guild_tracking`", fetch=True, fetchall=True, res=True
+        )
         loaded_guilds: t.List[int] = list(dict.fromkeys(chain.from_iterable(loaded_guilds)))
         guilds = await self.fetch_guilds().flatten()
         for guild in guilds:

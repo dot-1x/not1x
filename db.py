@@ -83,7 +83,13 @@ class connection:
         self, query: str, *args, fetch: bool = False, fetchall: bool = False, res: bool = True, commit: bool = False
     ) -> t.Tuple | None:
         _res = None
-        async with aiomysql.connect(host=self.__data["host"],port=self.__data["port"],user=self.__data["user"],password=self.__data["password"],db=self.__data["db"],) as con:
+        async with aiomysql.connect(
+            host=self.__data["host"],
+            port=self.__data["port"],
+            user=self.__data["user"],
+            password=self.__data["password"],
+            db=self.__data["db"],
+        ) as con:
             con: aiomysql.Connection
             async with con.cursor() as cur:
                 cur: aiomysql.Cursor
@@ -149,9 +155,10 @@ class connection:
             d: t.Tuple[int, int, str, str]
             yield d
 
-    async def fetchuserid(self) -> t.Generator[int]:
+    async def fetchuserid(self):
         r = await self.execute("SELECT `userid` FROM `user_data`", fetch=True, fetchall=True, res=True)
         for d in np.unique(r):
+            d: int
             yield d
 
     async def fetchguild(self) -> tuple:

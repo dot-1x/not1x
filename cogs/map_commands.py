@@ -146,18 +146,15 @@ class MapCommands(commands.Cog):
             _channel = self.bot.get_channel(channel.id)
 
         if not _channel:
-            await ctx.respond("Please specify a tracking channel first")
-            return
+            return await ctx.respond("Please specify a tracking channel first")
 
         serverstatus = await GetServer(ip=ip, port=port)
 
         if ipport in _tracking:
-            await ctx.respond("Given server ip is already on map tracking")
-            return
+            return await ctx.respond("Given server ip is already on map tracking")
 
         if not serverstatus.status:
-            await ctx.respond("given server ip did not respond please try again later")
-            return
+            return await ctx.respond("given server ip did not respond please try again later")
 
         _sv_list = self.bot.config["serverquery"]
 
@@ -202,8 +199,7 @@ class MapCommands(commands.Cog):
         notify_list = await self.bot.db.gettracking(ctx.guild.id)
 
         if not len(notify_list):
-            await ctx.respond("This guild currently has no server query")
-            return
+            return await ctx.respond("This guild currently has no server query")
         opt = [discord.SelectOption(label=x, value=x) for x in notify_list]
         await ui_utils.select_ip(ctx, opt)
 
@@ -245,10 +241,11 @@ class MapCommands(commands.Cog):
         embeds = discord.Embed()
 
         if len(founded_map) < 1:
-            await ctx.respond("None map found!")
-            return
+            return await ctx.respond("None map found!")
 
-        user_notified_maps = await self.bot.db.getnotify(ctx.author.id)
+        user_notified_maps = [m async for m in self.bot.db.getnotify(ctx.author.id)]
+        if len(user_notified_maps) > 300:
+            return await ctx.respond("**Your current notification list have more than 300!**, consider using *regex* notification")
         opt = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
         if len(opt) > 250:
             await ctx.respond("More than 250 maps found!")
@@ -269,20 +266,23 @@ class MapCommands(commands.Cog):
         pattern: discord.Option(str, description="string pattern to notify"),
     ):
         await ctx.defer()
+        
+        user_notified_maps = [m async for m in self.bot.db.getnotify(ctx.author.id)]
+        if len(user_notified_maps) > 300:
+            return await ctx.respond("**Your current notification list have more than 300!**, consider using *regex* notification")
+            
         pattern: str = pattern.strip()
         if re.search("\s", string=pattern):
-            await ctx.respond("pattern must not contain any whitespace")
-            return
+            return await ctx.respond("pattern must not contain any whitespace")
         await self.bot.db.insertnotify(ctx.author.id, ctx.author, [pattern.lower()])
         await ctx.respond(f"String pattern: **{pattern}** added to notification")
 
     @notify.command(name="list", description="Get your notification list")
     async def notify_list(self, ctx: discord.ApplicationContext):
         await ctx.defer()
-        user_notify = await self.bot.db.getnotify(ctx.author.id)
+        user_notify = [m async for m in self.bot.db.getnotify(ctx.author.id)]
         if len(user_notify) < 1:
-            await ctx.respond("Currently no notification!")
-            return
+            return await ctx.respond("Currently no notification!")
         _pages = [
             [
                 discord.Embed(
@@ -304,10 +304,9 @@ class MapCommands(commands.Cog):
     @addhelp("Edit your notification, select the map from map page, and press CONFIRM to delete your notification")
     async def notify_edit(self, ctx: discord.ApplicationContext):
         await ctx.defer()
-        user_notify = await self.bot.db.getnotify(ctx.author.id)
+        user_notify = [m async for m in self.bot.db.getnotify(ctx.author.id)]
         if len(user_notify) < 1:
-            await ctx.respond("Currently no notification!")
-            return
+            return await ctx.respond("Currently no notification!")
 
         opt = [discord.SelectOption(label=a, value=a) for a in user_notify]
         await ui_utils.select_map(ctx, opt, edit=True)

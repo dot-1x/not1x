@@ -14,7 +14,7 @@ from logs import setlog
 from tasks.map_task import ServerTask
 from utils import log_exception
 
-__version__ = "0.6.8"
+__version__ = "0.7"
 
 _logger = setlog(__name__)
 

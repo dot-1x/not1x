@@ -114,11 +114,14 @@ class ServerTask:
 
         if not self._notif and self.ipport != "103.62.48.10:27058" and self.isonline:
             self._notif = True
-            async for _, userid, _, map in self.bot.db.fetchuser():
+            async for userid in self.bot.db.fetchuserid():
                 _user = self.bot.get_user(userid)
-                if not _user or not re.search(map.lower(), self.mapname.lower()):
+                if not _user:
                     continue
-                await asyncio.wait_for(_user.send(embed=server_info), timeout=30)
+                async for map in self.bot.db.getnotify(userid):
+                    if not re.search(map.lower(), self.mapname.lower()):
+                        continue
+                    await asyncio.wait_for(_user.send(embed=server_info), timeout=30)
 
         async for _, guild, channel, tracking_ip, message in self.bot.db.fetchip(self.ipport):
             channel: discord.TextChannel = self.bot.get_channel(channel)

@@ -109,39 +109,35 @@ class connection:
                 if res:
                     return _res
 
-    async def getnotify(self, userid: int) -> t.List[str]:
+    async def getnotify(self, userid: int):
         r = await self.execute(
             "SELECT notified_maps FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=True, res=True
         )
-        return list(chain.from_iterable(r)) if r else []
+        for m in list(chain.from_iterable(r)) if r else []:
+            m: str
+            yield m
 
     async def insertnotify(self, userid: int, name: str, maps: t.List[str], *, delete: bool = False):
         r = await self.execute(
             "SELECT userid FROM user_data WHERE userid = %s", (userid), fetch=True, fetchall=False, res=True
         )
+        q = "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)"
         if r:
             async for map in iterdb(maps):
                 if delete:
-                    await self.execute(
-                        "DELETE FROM `user_data` WHERE `notified_maps` = %s AND `userid` = %s",
-                        (str(map), str(userid)),
-                        commit=True,
-                        res=False,
-                        fetch=False,
-                    )
-                else:
-                    await self.execute(
-                        "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
-                        (str(userid), str(name), str(map)),
-                        commit=True,
-                        res=False,
-                        fetch=False,
-                    )
+                    q = "DELETE FROM `user_data` WHERE `notified_maps` = %s AND `userid` = %s"
+                await self.execute(
+                    q,
+                    (str(userid), str(name), str(map)),
+                    commit=True,
+                    res=False,
+                    fetch=False,
+                )
             _logger.info(f"Successfully updated notify for {name}")
         else:
             async for map in iterdb(maps):
                 await self.execute(
-                    "INSERT INTO `user_data`(`userid`, `name`, `notified_maps`) VALUES (%s, %s, %s)",
+                    q,
                     (str(userid), str(name), str(map)),
                     commit=True,
                     res=False,

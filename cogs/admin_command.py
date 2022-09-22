@@ -24,15 +24,15 @@ class AdminCog(commands.Cog):
     @commands.cooldown(1, 15, commands.BucketType.user)
     @addhelp("Bot owner only command")
     async def reload_ext(
-        self, ctx: t.Optional[bridge.BridgeApplicationContext | bridge.BridgeExtContext], *, exts=None
+        self, ctx: t.Optional[bridge.BridgeApplicationContext | bridge.BridgeExtContext], *, exts: str = None
     ):
         await ctx.reply("Reloading extensions")
         if ctx.author.id not in ctx.bot.owner_ids:
             raise commands.NotOwner("You Do not have permission to use this commands")
         if not exts:
             self.bot.reload_extension()
-        elif len(exts) > 0:
-            for ext_ in exts:
+        elif len(exts.split(" ")) > 0:
+            for ext_ in exts.split(" "):
                 self.bot.reload_extension(ext_)
         await ctx.send(f"Extension Loaded: {list(self.bot.extensions.keys())}")
 
@@ -65,7 +65,7 @@ class AdminCog(commands.Cog):
                 inline=False,
             )
             return await ctx.respond(embed=em)
-        em.description = "**Use /help [command] to search up specific command help**"
+        em.description = "**Use /help [command] to search up specific command help**\nMap notification is *limited to 300* due to discord view limitation"
         for c in flattened_cmd:
             em.add_field(name=c.qualified_name, value=c.description, inline=True)
         await ctx.respond(embed=em)

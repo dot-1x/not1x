@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import typing as t
 from datetime import datetime
 from enum import Enum
@@ -49,3 +50,21 @@ class CommandHelp(t.TypedDict):
     desctiption: str
     parent: str | None
     option: t.List[discord.Option]
+
+
+class server_info(t.NamedTuple):
+    id: int
+    tracking_ip: str
+    map: str
+    date: datetime
+    lastplayed: datetime
+    playtime: int
+    played: int
+    average_players: int
+
+
+class user_data(t.NamedTuple):
+    id: int
+    userid: int
+    name: str
+    notified_maps: str

@@ -272,13 +272,18 @@ class connection:
         r = await self.execute("SELECT * FROM `server_info`", fetch=True, fetchall=True)
         return r
 
-    async def fetchserverdata(self, ip: str) -> t.List[t.Tuple[int, str, str, datetime, datetime, int, int, float]]:
+    async def fetchserverdata(self, ip: str) -> t.List[server_info]:
         """
         fetch server data from db
             return tuple(id, ip, map, date, lastplayed, playtime, played, average_players)
         """
-        r = await self.execute("SELECT * FROM `server_info` WHERE `tracking_ip` = %s", (ip), fetch=True, fetchall=True)
-        return r
+        r = await self.execute(
+            "SELECT * FROM `server_info` WHERE `tracking_ip` = %s ORDER BY `lastplayed` DESC",
+            (ip),
+            fetch=True,
+            fetchall=True,
+        )
+        return [server_info(*s) for s in r]
 
     async def getlastmap(self, ip: str) -> t.Union[str, MapEnum.UNKOWN.value]:
         r = await self.execute(
@@ -290,3 +295,14 @@ class connection:
             commit=False,
         )
         return list(chain.from_iterable(r))[0] if r else MapEnum.UNKOWN
+
+    async def getmapdata(self, ip: str, map: str):
+        r = await self.execute(
+            "SELECT * FROM `server_info` WHERE `tracking_ip` = %s AND `map` = %s",
+            (ip, map),
+            fetch=True,
+            fetchall=True,
+            res=True,
+            commit=False,
+        )
+        return [server_info(*s) for s in r]

@@ -1,4 +1,5 @@
 import json
+from operator import le
 import re
 from datetime import datetime
 from ipaddress import ip_address
@@ -6,7 +7,7 @@ from itertools import chain
 from multiprocessing import Process
 
 import discord
-from discord.commands import SlashCommandGroup, slash_command
+from discord.commands import SlashCommandGroup, slash_command, default_permissions
 from discord.ext import commands, pages, tasks
 
 import not1x
@@ -102,6 +103,7 @@ class MapCommands(commands.Cog):
         required=True,
     )
     @commands.has_permissions(manage_guild=True)
+    @default_permissions(manage_guild=True)
     @addhelp("set the tracking channel, if guild haven't set any yet, it'll add it, else update it")
     async def channel(self, ctx: discord.ApplicationContext, channel: discord.TextChannel):
         try:
@@ -121,6 +123,7 @@ class MapCommands(commands.Cog):
         required=False,
     )
     @commands.has_permissions(manage_guild=True)
+    @default_permissions(manage_guild=True)
     @addhelp(
         "add source server to track on current guild\nusage:\n<ip>: must be filled with ipv4 address format, you cannot fill with dns or any invalid ipv4 format\n<port>: server port\n[channel]: select the channel you want to add the tracking to, one channel is for all tracking, if you havent set a channel yet, this field is **REQUIRED**"
     )
@@ -192,6 +195,7 @@ class MapCommands(commands.Cog):
 
     @server.command(description="Delete an existed task query on guild")
     @commands.has_permissions(manage_guild=True)
+    @default_permissions(manage_guild=True)
     @addhelp(
         "Delete existed server query from guild, select the ip from the page to delete from current server query list and press CONFIRM"
     )
@@ -245,7 +249,9 @@ class MapCommands(commands.Cog):
 
         user_notified_maps = [m async for m in self.bot.db.getnotify(ctx.author.id)]
         if len(user_notified_maps) > 300:
-            return await ctx.respond("**Your current notification list have more than 300!**, consider using *regex* notification")
+            return await ctx.respond(
+                "**Your current notification list have more than 300!**, consider using *regex* notification"
+            )
         opt = [discord.SelectOption(label=a, value=a) for a in founded_map if a not in user_notified_maps]
         if len(opt) > 250:
             await ctx.respond("More than 250 maps found!")
@@ -266,11 +272,13 @@ class MapCommands(commands.Cog):
         pattern: discord.Option(str, description="string pattern to notify"),
     ):
         await ctx.defer()
-        
+
         user_notified_maps = [m async for m in self.bot.db.getnotify(ctx.author.id)]
         if len(user_notified_maps) > 300:
-            return await ctx.respond("**Your current notification list have more than 300!**, consider using *regex* notification")
-            
+            return await ctx.respond(
+                "**Your current notification list have more than 300!**, consider using *regex* notification"
+            )
+
         pattern: str = pattern.strip()
         if re.search("\s", string=pattern):
             return await ctx.respond("pattern must not contain any whitespace")
@@ -310,6 +318,23 @@ class MapCommands(commands.Cog):
 
         opt = [discord.SelectOption(label=a, value=a) for a in user_notify]
         await ui_utils.select_map(ctx, opt, edit=True)
+
+    @server.command(name="mapinfo", descrtiption="get a map history from server")
+    async def mapinfo(
+        self,
+        ctx: discord.ApplicationContext,
+        ip: discord.Option(str, "ip server to get"),
+        map: discord.Option(str, "map name to get"),
+    ):
+        raise commands.CommandInvokeError("Command is currently on build!")
+        await ctx.defer()
+        maps = await self.bot.db.getmapdata(ip, map)
+        if not len(maps):
+            return await ctx.respond(f"No map **{map}** history were found in **{ip}**")
+        em = discord.Embed(color=await most_color(ctx.author.avatar))
+        em.title = f"Server {ip} map {map} history"
+        for m in maps:
+            em.add_field(name="None", value="...")
 
 
 def setup(bot):

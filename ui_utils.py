@@ -77,10 +77,6 @@ class PlayerListV(discord.ui.View):
 
         data = await self.bot.db.fetchserverdata(self.ipport)
 
-        def sort():
-            return sorted(data, key=lambda x: x[4], reverse=True)
-
-        data = await self.bot.loop.run_in_executor(None, sort)
         data = data[:24]
 
         listed = list(parse_history(data))
@@ -107,7 +103,7 @@ class PlayerListV(discord.ui.View):
         data = await self.bot.db.fetchserverdata(self.ipport)
 
         def sortday():
-            return [a for a in data if (datetime.now() - a[4]).days < 7]
+            return [a for a in data if (datetime.now() - a.lastplayed).days < 7]
 
         data = await self.bot.loop.run_in_executor(None, sortday)
 
@@ -120,7 +116,7 @@ class PlayerListV(discord.ui.View):
         )
         df = df.sort_values("Play_Time", ascending=False, ignore_index=True)
         stringdata = (
-            f"Playtime is in minutes, Date are UTC+0\n\nServer IP: {self.ipport}\nTotal Average Players: {np.average(total_average).__round__()}\nSorted By Most PlayTime\n"
+            f"Playtime is in minutes, Date are UTC+0\n\nServer IP: {self.ipport}\nTotal Average Players: {np.average(total_average):.2f}\nSorted By Most PlayTime\n"
             + df.to_string()
         )
         b = io.BytesIO(bytes(stringdata, "utf-8"))

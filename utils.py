@@ -56,26 +56,26 @@ def log_exception(exc: Exception, typ: ExcType, id: int = 0):
         )
 
 
-def parse_history(history: t.List[t.Tuple[int, str, str, datetime, datetime, int, int, float]]):
+def parse_history(history: t.List[server_info]):
     data: t.Dict[str, ServerHistory] = {}
-    for _, ip, Maps, TimePlayed, LastPlayed, PlayTime, Played, AveragePlayers in history:
-        if Maps not in data:
-            data[Maps] = {
-                "Map": Maps,
-                "Play_Time": PlayTime,
-                "Played": Played,
-                "Average_Player": [AveragePlayers],
-                "Last_Played": LastPlayed,
+    for s in history:
+        if s.map not in data:
+            data[s.map] = {
+                "Map": s.map,
+                "Play_Time": s.playtime,
+                "Played": s.played,
+                "Average_Player": [s.average_players],
+                "Last_Played": s.lastplayed,
             }
         else:
-            if data[Maps]["Last_Played"] < LastPlayed:
-                data[Maps]["Last_Played"] = LastPlayed
-            data[Maps]["Play_Time"] += PlayTime
-            data[Maps]["Played"] += Played
-            data[Maps]["Average_Player"].append(AveragePlayers)
+            if data[s.map]["Last_Played"] < s.lastplayed:
+                data[s.map]["Last_Played"] = s.lastplayed
+            data[s.map]["Play_Time"] += s.playtime
+            data[s.map]["Played"] += s.played
+            data[s.map]["Average_Player"].append(s.average_players)
     for k in data:
         total = np.average(data[k]["Average_Player"])
-        data[k]["Average_Player"]: int = total
+        data[k]["Average_Player"]: float = round(total, 2)
         yield ServerHistory(**data[k])
 
 
